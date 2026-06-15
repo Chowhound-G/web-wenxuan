@@ -2,12 +2,12 @@
 
 This repository is public:
 
-- Repo: `https://github.com/dengzhekun/projectku-web`
+- Repo: `https://github.com/Inventionyin/web-wenxuan`
 - Clone:
 
 ```bash
-git clone https://github.com/dengzhekun/projectku-web.git
-cd projectku-web
+git clone https://github.com/Inventionyin/web-wenxuan.git
+cd web-wenxuan
 ```
 
 ## What This Project Is
@@ -67,7 +67,7 @@ Current public site:
 
 GitHub release page:
 
-- Releases: `https://github.com/dengzhekun/projectku-web/releases`
+- Releases: `https://github.com/Inventionyin/web-wenxuan/releases`
 
 ## Repo Structure
 
@@ -154,4 +154,4 @@ When taking over this project, verify these items first:
 
 This is the link you can send directly to a collaborator:
 
-`https://github.com/dengzhekun/projectku-web`
+`https://github.com/Inventionyin/web-wenxuan`

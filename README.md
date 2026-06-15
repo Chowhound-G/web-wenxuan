@@ -8,8 +8,8 @@ ProjectKu Web is a full-stack e-commerce project with product catalog, cart, ord
 
 ![ProjectKu homepage](docs/repo-assets/homepage.png)
 
-![Release](https://img.shields.io/github/v/release/dengzhekun/projectku-web)
-![License](https://img.shields.io/github/license/dengzhekun/projectku-web)
+![Release](https://img.shields.io/github/v/release/Inventionyin/web-wenxuan)
+![License](https://img.shields.io/github/license/Inventionyin/web-wenxuan)
 
 ## Highlights
 
