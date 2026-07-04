@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import crypto from 'node:crypto'
 
 const root = process.cwd()
 const caseFile = process.env.ZENTAO_TESTCASE_FILE || 'qa/zentao/testcases.json'
@@ -97,36 +98,60 @@ const requestText = async (url, options = {}, jar = null) => {
   return { res, text }
 }
 
+const zentaoUserAgent =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+
+const md5 = (value) => crypto.createHash('md5').update(String(value)).digest('hex')
+
 const hasTraditionalLoginRedirect = (text) =>
   text.includes("self.location='/zentao/'") || text.includes('self.location="/zentao/"')
 
 const hasLoginError = (text) => /登录失败|密码错误|密码不正确|用户不存在|账号不存在|用户名或密码/.test(text)
+const looksLikeHtmlShell = (text) => /<!doctype html|<html[\s>]/i.test(text)
 
 const loginSession = async (baseURL) => {
   const jar = {}
-  await requestText(`${baseURL}/index.php?m=user&f=login`, {}, jar)
+  const loginURL = process.env.ZENTAO_URL || `${baseURL}/index.php?m=user&f=login`
+  await requestText(loginURL, { headers: { 'User-Agent': zentaoUserAgent } }, jar)
 
-  const form = new URLSearchParams()
+  const { text: randText } = await requestText(
+    `${baseURL}/index.php?m=user&f=refreshRandom`,
+    {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: loginURL,
+        'User-Agent': zentaoUserAgent,
+      },
+    },
+    jar,
+  )
+  const verifyRand = randText.trim()
+  if (!verifyRand) throw new Error('禅道传统接口登录失败: refreshRandom 未返回 verifyRand')
+
+  const form = new FormData()
   form.set('account', process.env.ZENTAO_USERNAME)
-  form.set('password', process.env.ZENTAO_PASSWORD)
+  form.set('password', md5(`${md5(process.env.ZENTAO_PASSWORD)}${verifyRand}`))
   form.set('passwordStrength', '1')
   form.set('referer', '/zentao/')
-  form.set('keepLogin', 'on')
+  form.set('verifyRand', verifyRand)
+  form.set('keepLogin', '0')
+  form.set('captcha', '')
 
   const { text } = await requestText(
     `${baseURL}/index.php?m=user&f=login`,
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
         'X-Requested-With': 'XMLHttpRequest',
+        Referer: loginURL,
+        'User-Agent': zentaoUserAgent,
       },
-      body: form.toString(),
+      body: form,
     },
     jar,
   )
 
-  if (hasLoginError(text)) {
+  if (hasLoginError(text) && !looksLikeHtmlShell(text)) {
     throw new Error(`禅道传统接口登录失败: ${text.slice(0, 200)}`)
   }
 
@@ -175,7 +200,9 @@ const createTesttask = async (baseURL, jar, productID, payload) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Referer: `/index.php?m=testtask&f=create&product=${productID}`,
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: `${baseURL}/index.php?m=testtask&f=create&product=${productID}`,
+        'User-Agent': zentaoUserAgent,
       },
       body: form.toString(),
     },
@@ -198,7 +225,9 @@ const linkCases = async (baseURL, jar, taskID, cases) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Referer: `/index.php?m=testtask&f=caseTasks&taskID=${taskID}`,
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: `${baseURL}/index.php?m=testtask&f=caseTasks&taskID=${taskID}`,
+        'User-Agent': zentaoUserAgent,
       },
       body: form.toString(),
     },
@@ -229,7 +258,9 @@ const runCase = async (baseURL, jar, { runID, caseID, version = 1, result, real 
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Referer: `/index.php?m=testtask&f=runCase&id=${runID}`,
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: `${baseURL}/index.php?m=testtask&f=runCase&id=${runID}`,
+        'User-Agent': zentaoUserAgent,
       },
       body: form.toString(),
     },
