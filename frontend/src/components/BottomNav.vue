@@ -28,29 +28,36 @@ const isActive = (name: string) => route.name === name
 
 <style scoped>
 .nav {
-  position: sticky;
-  top: var(--app-brandbar-h, 0px);
-  z-index: var(--z-nav);
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-  backdrop-filter: saturate(180%) blur(10px);
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .item {
-  padding: 14px 8px;
+  flex: 0 0 auto;
+  min-width: 56px;
+  padding: 9px 12px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   color: var(--text);
-  display: grid;
-  place-items: center;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
 }
 
 .item.active {
-  color: var(--text-h);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 800;
 }
 
 .label {
@@ -59,22 +66,14 @@ const isActive = (name: string) => route.name === name
 
 @media (min-width: 1024px) {
   .nav {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 32px;
+    gap: 8px;
+    overflow: visible;
   }
 
   .item {
     min-width: 104px;
     padding: 10px 16px;
-    border-radius: 999px;
     font-size: 14px;
-  }
-
-  .item.active {
-    background: var(--accent-bg);
-    color: var(--accent);
   }
 
   .label {

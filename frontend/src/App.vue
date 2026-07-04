@@ -5,7 +5,6 @@ import { useAuthStore } from './stores/auth'
 import { useFavoritesStore } from './stores/favorites'
 
 import BottomNav from './components/BottomNav.vue'
-import CustomerServiceChat from './components/CustomerServiceChat.vue'
 import UiToastHost from './components/ui/UiToastHost.vue'
 
 const route = useRoute()
@@ -13,7 +12,6 @@ const auth = useAuthStore()
 const favorites = useFavoritesStore()
 
 const showNav = computed(() => route.meta?.hideNav !== true)
-const showChat = computed(() => route.meta?.hideChat !== true)
 
 onMounted(() => {
   if (auth.isLoggedIn) {
@@ -33,11 +31,12 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
 <template>
   <div class="app">
     <header class="brandbar" aria-label="平台品牌栏">
-      <div class="brand">元气购</div>
+      <div class="brandInner">
+        <RouterLink class="brand" to="/" aria-label="元气购首页">元气购</RouterLink>
+        <BottomNav v-if="showNav" />
+      </div>
     </header>
-    <BottomNav v-if="showNav" />
     <RouterView class="view" />
-    <CustomerServiceChat v-if="showChat" />
     <UiToastHost />
   </div>
 </template>
@@ -57,17 +56,28 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
   height: var(--app-brandbar-h);
   display: flex;
   align-items: center;
-  padding: 0 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   backdrop-filter: saturate(180%) blur(10px);
 }
 
+.brandInner {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 0 16px;
+}
+
 .brand {
+  flex: 0 0 auto;
   font-weight: 900;
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
   color: var(--text-h);
   font-size: 16px;
+  line-height: 1;
+  text-decoration: none;
 }
 
 .view {
@@ -83,11 +93,15 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
 
   .brandbar {
     justify-content: center;
-    padding: 0 32px;
+  }
+
+  .brandInner {
+    width: min(1180px, calc(100% - 48px));
+    padding: 0;
+    gap: 32px;
   }
 
   .brand {
-    width: min(1180px, 100%);
     font-size: 20px;
   }
 }

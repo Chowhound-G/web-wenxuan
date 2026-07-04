@@ -157,7 +157,7 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <header class="topbar">
+    <header class="topbar" aria-label="首页搜索和账号操作">
       <form class="search" role="search" @submit.prevent="submitSearch">
         <input
           v-model="keyword"
@@ -186,33 +186,54 @@ onMounted(() => {
     </header>
 
     <main class="content" aria-live="polite">
-      <section class="heroPanel" aria-label="精选导购">
-        <div class="heroCopy">
-          <div class="eyebrow">Yuanqi Market</div>
-          <h1 class="heroTitle">把好物挑选变简单</h1>
-          <p class="heroDesc">精选数码、家电、生活与运动商品，清晰价格、真实评价、快速下单。</p>
-          <div class="heroActions">
-            <button class="heroPrimary" type="button" @click="router.push({ name: 'search' })">浏览精选</button>
-            <button class="heroSecondary" type="button" @click="router.push({ name: 'category' })">查看分类</button>
-          </div>
-        </div>
-        <img
-          class="heroImage"
-          src="https://images.pexels.com/photos/5082579/pexels-photo-5082579.jpeg?auto=compress&cs=tinysrgb&w=1200"
-          alt="现代桌面上的数码设备"
-        />
-      </section>
+      <section class="storefront" aria-label="首页精选">
+        <aside class="categoryRail" aria-label="商品分类">
+          <div class="railTitle">商品分类</div>
+          <button v-for="c in categories" :key="c.id" class="railItem" type="button" @click="goCategory(c)">
+            <span class="railIcon" aria-hidden="true" v-html="c.icon"></span>
+            <span>{{ c.name }}</span>
+          </button>
+        </aside>
 
-      <section class="banner" aria-label="活动横幅">
-        <div class="bannerTrack">
-          <article v-for="b in banners" :key="b.id" class="bannerCard">
-            <img class="bannerImg" :src="b.image" :alt="b.title" loading="lazy" decoding="async" />
-            <div class="bannerText">
-              <div class="bannerTitle">{{ b.title }}</div>
-              <div class="bannerSub">{{ b.subtitle }}</div>
+        <section class="heroPanel" aria-label="精选导购">
+          <div class="heroMedia">
+            <img
+              class="heroImage"
+              src="https://images.pexels.com/photos/5082579/pexels-photo-5082579.jpeg?auto=compress&cs=tinysrgb&w=1200"
+              alt="现代桌面上的数码设备"
+            />
+          </div>
+          <div class="heroCopy">
+            <div class="eyebrow">Yuanqi Market</div>
+            <h1 class="heroTitle">精选好物，一站购齐</h1>
+            <p class="heroDesc">数码家电、办公桌面、居家生活按场景整理，价格、评价和库存信息一眼看清。</p>
+            <div class="heroStats" aria-label="平台服务亮点">
+              <span>正品优选</span>
+              <span>快速加购</span>
+              <span>售后可查</span>
             </div>
-          </article>
-        </div>
+            <div class="heroActions">
+              <button class="heroPrimary" type="button" @click="router.push({ name: 'search' })">浏览精选</button>
+              <button class="heroSecondary" type="button" @click="router.push({ name: 'category' })">查看分类</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="servicePanel" aria-label="快捷服务">
+          <div class="serviceBlock">
+            <div class="serviceTitle">欢迎来到元气购</div>
+            <p class="serviceDesc">登录后查看订单、收藏和消息。</p>
+            <button class="serviceBtn" type="button" @click="onAuthClick">{{ authText }}</button>
+          </div>
+          <button class="serviceLink" type="button" @click="router.push({ name: 'messages' })">
+            消息中心
+            <span>查看通知</span>
+          </button>
+          <button class="serviceLink warm" type="button" @click="router.push({ name: 'cart' })">
+            购物车
+            <span>管理已选商品</span>
+          </button>
+        </aside>
       </section>
 
       <section class="cats" aria-label="快捷类目">
@@ -226,6 +247,18 @@ onMounted(() => {
           <span class="catIcon" aria-hidden="true" v-html="c.icon"></span>
           <span class="catName">{{ c.name }}</span>
         </button>
+      </section>
+
+      <section class="banner" aria-label="活动横幅">
+        <div class="bannerTrack">
+          <article v-for="b in banners" :key="b.id" class="bannerCard">
+            <img class="bannerImg" :src="b.image" :alt="b.title" loading="lazy" decoding="async" />
+            <div class="bannerText">
+              <div class="bannerTitle">{{ b.title }}</div>
+              <div class="bannerSub">{{ b.subtitle }}</div>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section class="section">
@@ -821,6 +854,757 @@ onMounted(() => {
 
   .cover {
     height: 184px;
+  }
+}
+</style>
+
+<style scoped>
+.page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--code-bg) 74%, var(--bg) 26%) 0, var(--bg) 360px),
+    var(--bg);
+}
+
+.topbar {
+  width: min(1180px, calc(100% - 24px));
+  margin: 12px auto 0;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+}
+
+.right {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.search {
+  min-width: 0;
+  height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 2px solid color-mix(in srgb, var(--commerce-warm) 60%, var(--border) 40%);
+  border-radius: var(--radius-xs);
+  padding: 0 4px 0 12px;
+  background: var(--bg);
+}
+
+.search:focus-within {
+  border-color: var(--commerce-warm);
+  box-shadow: 0 0 0 3px var(--commerce-warm-bg);
+}
+
+.searchInput {
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 0 10px 0 0;
+  font-size: 14px;
+  color: var(--text-h);
+  min-width: 0;
+}
+
+.searchBtn {
+  min-width: 64px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #111827;
+  background: var(--commerce-warm);
+  cursor: pointer;
+}
+
+.msgBtn,
+.authBtn {
+  min-width: 52px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 0 12px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.authBtn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.content {
+  width: min(1180px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 14px 0 36px;
+  display: grid;
+  gap: 14px;
+}
+
+.storefront {
+  display: grid;
+  gap: 12px;
+}
+
+.categoryRail,
+.servicePanel,
+.heroPanel,
+.bannerCard,
+.cat,
+.card,
+.panel,
+.skeletonCard {
+  border-radius: var(--radius-xs);
+}
+
+.categoryRail,
+.servicePanel {
+  display: none;
+}
+
+.heroPanel {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: grid;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.heroMedia {
+  min-height: 190px;
+  background: var(--code-bg);
+}
+
+.heroImage {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  object-fit: cover;
+  display: block;
+}
+
+.heroCopy {
+  padding: 22px;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  margin: 0;
+  max-width: 560px;
+  font-size: 32px;
+  line-height: 1.12;
+  letter-spacing: 0;
+  font-weight: 900;
+}
+
+.heroDesc {
+  max-width: 520px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.heroStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.heroStats span {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 5px 10px;
+  color: var(--commerce-ink);
+  background: color-mix(in srgb, var(--code-bg) 76%, var(--bg) 24%);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.heroPrimary,
+.heroSecondary,
+.serviceBtn,
+.sectionMore,
+.actionBtn,
+.panelBtn {
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+
+.heroPrimary,
+.heroSecondary {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.heroPrimary {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+}
+
+.heroSecondary {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.cats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cat {
+  min-height: 76px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 10px 8px;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.catIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  padding: 6px;
+}
+
+.catIcon :deep(svg),
+.railIcon :deep(svg) {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.catName {
+  font-size: 12px;
+  color: var(--text-h);
+}
+
+.banner {
+  overflow: hidden;
+}
+
+.bannerTrack {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 82%);
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+}
+
+.bannerTrack::-webkit-scrollbar {
+  height: 8px;
+}
+
+.bannerCard {
+  scroll-snap-align: start;
+  min-height: 134px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: grid;
+  grid-template-columns: 42% minmax(0, 1fr);
+}
+
+.bannerImg {
+  width: 100%;
+  height: 100%;
+  min-height: 134px;
+  object-fit: cover;
+  display: block;
+}
+
+.bannerText {
+  padding: 16px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.bannerTitle {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 900;
+  color: var(--text-h);
+}
+
+.bannerSub {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.section {
+  display: grid;
+  gap: 12px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  margin: 0;
+  color: var(--text-h);
+  font-weight: 900;
+}
+
+.sectionDesc {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sectionMore {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--accent);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  overflow: hidden;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+.cardBtn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.cover {
+  width: 100%;
+  height: 132px;
+  object-fit: cover;
+  display: block;
+  background: var(--code-bg);
+}
+
+.meta {
+  padding: 10px;
+  display: grid;
+  gap: 7px;
+}
+
+.title {
+  font-size: 14px;
+  color: var(--text-h);
+  font-weight: 800;
+  line-height: 1.28;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.brandLine {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.price {
+  color: #b45309;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.rating {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--code-bg) 80%, transparent);
+  border: 1px solid var(--border);
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+}
+
+.tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 12px;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.actions {
+  padding: 9px 10px 10px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.actionBtn {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 13px;
+}
+
+.actionBtn:first-child {
+  border-color: var(--commerce-warm);
+  background: var(--commerce-warm-bg);
+  color: #92400e;
+}
+
+.panel {
+  border: 1px dashed var(--border);
+  padding: 18px 16px;
+  text-align: center;
+  display: grid;
+  gap: 8px;
+  background: var(--bg);
+}
+
+.panelTitle {
+  color: var(--text-h);
+  font-weight: 800;
+}
+
+.panelDesc {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.panelBtn {
+  justify-self: center;
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.skeletonCard {
+  height: 220px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--code-bg) 72%, transparent),
+      color-mix(in srgb, var(--bg) 90%, transparent),
+      color-mix(in srgb, var(--code-bg) 72%, transparent)
+    );
+  background-size: 300% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 0%;
+  }
+}
+
+@media (max-width: 520px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .right {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .msgBtn,
+  .authBtn {
+    width: 100%;
+  }
+}
+
+@media (min-width: 920px) {
+  .page {
+    align-items: center;
+  }
+
+  .topbar {
+    width: min(1180px, calc(100% - 48px));
+    margin-top: 18px;
+    padding: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .search {
+    max-width: none;
+  }
+
+  .content {
+    width: min(1180px, calc(100% - 48px));
+    padding: 16px 0 42px;
+    gap: 16px;
+  }
+
+  .storefront {
+    grid-template-columns: 196px minmax(0, 1fr) 220px;
+    align-items: stretch;
+  }
+
+  .categoryRail,
+  .servicePanel {
+    display: grid;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  }
+
+  .categoryRail {
+    align-content: start;
+    gap: 4px;
+    padding: 14px;
+  }
+
+  .railTitle {
+    padding: 0 4px 8px;
+    color: var(--text-h);
+    font-weight: 900;
+  }
+
+  .railItem {
+    width: 100%;
+    min-height: 38px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--text-h);
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .railItem:hover {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+
+  .railIcon {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    color: currentColor;
+    background: color-mix(in srgb, currentColor 9%, transparent);
+    padding: 5px;
+  }
+
+  .heroPanel {
+    min-height: 384px;
+    grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
+  }
+
+  .heroMedia {
+    min-height: 384px;
+    order: 2;
+  }
+
+  .heroImage {
+    min-height: 384px;
+  }
+
+  .heroCopy {
+    order: 1;
+    padding: 38px;
+  }
+
+  .heroTitle {
+    font-size: 44px;
+  }
+
+  .servicePanel {
+    align-content: start;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .serviceBlock {
+    display: grid;
+    gap: 9px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .serviceTitle {
+    color: var(--text-h);
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  .serviceDesc {
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .serviceBtn {
+    min-height: 36px;
+    border: 0;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 800;
+  }
+
+  .serviceLink {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, var(--code-bg) 68%, var(--bg) 32%);
+    color: var(--text-h);
+    padding: 12px;
+    text-align: left;
+    display: grid;
+    gap: 4px;
+    cursor: pointer;
+    font-weight: 900;
+  }
+
+  .serviceLink span {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .serviceLink.warm {
+    border-color: color-mix(in srgb, var(--commerce-warm) 42%, var(--border) 58%);
+    background: var(--commerce-warm-bg);
+  }
+
+  .cats {
+    display: none;
+  }
+
+  .bannerTrack {
+    grid-auto-flow: initial;
+    grid-auto-columns: initial;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+    gap: 12px;
+  }
+
+  .bannerCard {
+    min-height: 154px;
+  }
+
+  .bannerImg {
+    min-height: 154px;
+  }
+
+  .bannerTitle {
+    font-size: 20px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .cover {
+    height: 170px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .cover {
+    height: 178px;
   }
 }
 </style>

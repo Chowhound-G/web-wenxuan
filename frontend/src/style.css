@@ -3,10 +3,13 @@
   --text-h: #101828;
   --bg: #fff;
   --border: #e4e7ec;
-  --code-bg: #f6f8fb;
-  --accent: #2563eb;
-  --accent-bg: rgba(37, 99, 235, 0.1);
-  --accent-border: rgba(37, 99, 235, 0.32);
+  --code-bg: #f5f7fa;
+  --accent: #0f766e;
+  --accent-bg: rgba(15, 118, 110, 0.1);
+  --accent-border: rgba(15, 118, 110, 0.32);
+  --commerce-ink: #172554;
+  --commerce-warm: #f59e0b;
+  --commerce-warm-bg: rgba(245, 158, 11, 0.14);
   --social-bg: rgba(244, 243, 236, 0.5);
   --danger: #ef4444;
   --danger-bg: rgba(239, 68, 68, 0.1);
@@ -44,7 +47,7 @@
   --z-toast: 60;
 
   font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  letter-spacing: 0;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -65,9 +68,12 @@
     --bg: #16171d;
     --border: #2e303a;
     --code-bg: #1f2028;
-    --accent: #60a5fa;
-    --accent-bg: rgba(96, 165, 250, 0.15);
-    --accent-border: rgba(96, 165, 250, 0.42);
+    --accent: #2dd4bf;
+    --accent-bg: rgba(45, 212, 191, 0.15);
+    --accent-border: rgba(45, 212, 191, 0.42);
+    --commerce-ink: #dbeafe;
+    --commerce-warm: #fbbf24;
+    --commerce-warm-bg: rgba(251, 191, 36, 0.16);
     --social-bg: rgba(47, 48, 58, 0.5);
     --danger: #f87171;
     --danger-bg: rgba(248, 113, 113, 0.15);
@@ -117,7 +123,7 @@ h2 {
 
 h1 {
   font-size: 56px;
-  letter-spacing: -1.68px;
+  letter-spacing: 0;
   margin: 32px 0;
   @media (max-width: 1024px) {
     font-size: 36px;
@@ -127,7 +133,7 @@ h1 {
 h2 {
   font-size: 24px;
   line-height: 118%;
-  letter-spacing: -0.24px;
+  letter-spacing: 0;
   margin: 0 0 8px;
   @media (max-width: 1024px) {
     font-size: 20px;
