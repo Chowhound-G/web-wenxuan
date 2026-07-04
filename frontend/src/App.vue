@@ -12,6 +12,7 @@ const auth = useAuthStore()
 const favorites = useFavoritesStore()
 
 const showNav = computed(() => route.meta?.hideNav !== true)
+const showTopActions = computed(() => route.name !== 'login')
 const authText = computed(() => (auth.isLoggedIn ? '退出' : '登录'))
 
 const onAuthClick = () => {
@@ -45,10 +46,11 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
       <div class="brandInner">
         <RouterLink class="brand" to="/" aria-label="元气购首页">元气购</RouterLink>
         <BottomNav />
-        <div class="topActions" aria-label="顶部快捷入口">
+        <div v-if="showTopActions" class="topActions" aria-label="顶部快捷入口">
           <RouterLink class="topAction" to="/messages">消息</RouterLink>
           <button class="topAction primary" type="button" @click="onAuthClick">{{ authText }}</button>
         </div>
+        <div v-else class="topActions placeholder" aria-hidden="true"></div>
       </div>
     </header>
     <RouterView class="view" />
@@ -105,6 +107,10 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.topActions.placeholder {
+  visibility: hidden;
 }
 
 .topAction {

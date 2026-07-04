@@ -18,6 +18,7 @@ type CartSnapshotV1 = {
 }
 
 const STORAGE_KEY = 'cart:v1'
+const silentAuthConfig = { skipAuthRedirect: true } as any
 
 const readSnapshot = (): CartSnapshotV1 => {
   try {
@@ -50,7 +51,7 @@ export const useCartStore = defineStore('cart', () => {
     const local = snapshot.value.items
     if (local.length === 0) return
 
-    const res = await api.get('/v1/cart')
+    const res = await api.get('/v1/cart', silentAuthConfig)
     const list = Array.isArray(res.data?.data) ? res.data.data : []
     for (const it of local) {
       const pid = Number(it.productId)
@@ -58,11 +59,11 @@ export const useCartStore = defineStore('cart', () => {
       const skuId = it.skuId && it.skuId !== 'default' ? Number(it.skuId) : null
       const found = list.find((x: any) => matchesProductAndSku(x, pid, skuId))
       if (!found) {
-        await api.post('/v1/cart/items', { productId: pid, skuId: it.skuId, quantity: it.qty })
+        await api.post('/v1/cart/items', { productId: pid, skuId: it.skuId, quantity: it.qty }, silentAuthConfig)
         continue
       }
       if (found.quantity !== it.qty) {
-        await api.put(`/v1/cart/items/${encodeURIComponent(found.id)}`, { quantity: it.qty })
+        await api.put(`/v1/cart/items/${encodeURIComponent(found.id)}`, { quantity: it.qty }, silentAuthConfig)
       }
     }
   }
@@ -74,7 +75,7 @@ export const useCartStore = defineStore('cart', () => {
       try {
         const pid = Number(input.productId)
         if (Number.isFinite(pid)) {
-          api.post('/v1/cart/items', { productId: pid, skuId: input.skuId, quantity: input.qty }).catch(() => {})
+          api.post('/v1/cart/items', { productId: pid, skuId: input.skuId, quantity: input.qty }, silentAuthConfig).catch(() => {})
         }
       } catch {}
       return
@@ -83,7 +84,7 @@ export const useCartStore = defineStore('cart', () => {
     try {
       const pid = Number(input.productId)
       if (Number.isFinite(pid)) {
-        api.post('/v1/cart/items', { productId: pid, skuId: input.skuId, quantity: input.qty }).catch(() => {})
+        api.post('/v1/cart/items', { productId: pid, skuId: input.skuId, quantity: input.qty }, silentAuthConfig).catch(() => {})
       }
     } catch {}
   }
@@ -95,13 +96,13 @@ export const useCartStore = defineStore('cart', () => {
     const pid = Number(target.productId)
     if (!Number.isFinite(pid)) return
     api
-      .get('/v1/cart')
+      .get('/v1/cart', silentAuthConfig)
       .then((res) => {
         const list = Array.isArray(res.data?.data) ? res.data.data : []
         const skuId = target.skuId && target.skuId !== 'default' ? Number(target.skuId) : null
         const found = list.find((x: any) => matchesProductAndSku(x, pid, skuId))
         if (found && found.id != null) {
-          return api.put(`/v1/cart/items/${encodeURIComponent(found.id)}`, { quantity: target.qty })
+          return api.put(`/v1/cart/items/${encodeURIComponent(found.id)}`, { quantity: target.qty }, silentAuthConfig)
         }
       })
       .catch(() => {})
@@ -114,13 +115,13 @@ export const useCartStore = defineStore('cart', () => {
     const pid = Number(target.productId)
     if (!Number.isFinite(pid)) return
     api
-      .get('/v1/cart')
+      .get('/v1/cart', silentAuthConfig)
       .then((res) => {
         const list = Array.isArray(res.data?.data) ? res.data.data : []
         const skuId = target.skuId && target.skuId !== 'default' ? Number(target.skuId) : null
         const found = list.find((x: any) => matchesProductAndSku(x, pid, skuId))
         if (found && found.id != null) {
-          return api.delete(`/v1/cart/items/${encodeURIComponent(found.id)}`)
+          return api.delete(`/v1/cart/items/${encodeURIComponent(found.id)}`, silentAuthConfig)
         }
       })
       .catch(() => {})

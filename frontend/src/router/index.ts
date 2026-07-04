@@ -39,7 +39,7 @@ export const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('../views/LoginView.vue'),
-      meta: { title: '登录', hideNav: true, description: '登录元气购，查看订单、消息与优惠。' },
+      meta: { title: '登录', description: '登录元气购，查看订单、消息与优惠。' },
     },
     {
       path: '/register',
@@ -90,9 +90,9 @@ export const router = createRouter({
       meta: { title: '常见问题', hideNav: true, description: '常见问题：按分类快速查找订单、支付、配送与售后解答。' },
     },
 
-    { path: '/phone', name: 'phone', component: () => import('../views/PhoneView.vue'), meta: { title: '手机' } },
-    { path: '/computer', name: 'computer', component: () => import('../views/ComputerView.vue'), meta: { title: '电脑' } },
-    { path: '/appliance', name: 'appliance', component: () => import('../views/ApplianceView.vue'), meta: { title: '家电' } },
+    { path: '/phone', redirect: { name: 'category', query: { category: 'c_phone' } } },
+    { path: '/computer', redirect: { name: 'category', query: { category: 'c_laptop' } } },
+    { path: '/appliance', redirect: { name: 'category', query: { category: 'c_home' } } },
 
     {
       path: '/products/:id',

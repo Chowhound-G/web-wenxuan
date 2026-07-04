@@ -16,6 +16,16 @@ const unread = computed(() => notifications.unreadCount)
 const latestTransactions = computed(() => wallet.transactions.slice(0, 3))
 const avatarText = computed(() => (auth.isLoggedIn ? nickname.value.slice(0, 1) : '未'))
 const priceFmt = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' })
+const orderStats = computed(() => [
+  { label: '待付款', value: auth.isLoggedIn ? '0' : '--' },
+  { label: '待收货', value: auth.isLoggedIn ? '0' : '--' },
+  { label: '售后中', value: auth.isLoggedIn ? '0' : '--' },
+])
+const assetItems = computed(() => [
+  { label: '优惠券', value: auth.isLoggedIn ? '0 张' : '--' },
+  { label: '积分', value: auth.isLoggedIn ? '0' : '--' },
+  { label: '消息', value: unread.value > 0 ? `${unread.value} 条` : '0 条' },
+])
 
 const goLogin = () => {
   router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
@@ -50,52 +60,52 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <section class="profilePanel" aria-label="账号概览">
-      <div class="profileMain">
-        <div class="avatar" aria-hidden="true">{{ avatarText }}</div>
-        <div class="profileCopy">
-          <div class="eyebrow">Personal Center</div>
-          <h1 class="title">我的</h1>
-          <p class="subtitle">{{ auth.isLoggedIn ? `欢迎回来，${nickname}` : '登录后同步订单、收藏、消息与售后进度。' }}</p>
+    <div class="sideColumn">
+      <section class="profilePanel" aria-label="账号概览">
+        <div class="profileMain">
+          <div class="avatar" aria-hidden="true">{{ avatarText }}</div>
+          <div class="profileCopy">
+            <div class="eyebrow">Personal Center</div>
+            <h1 class="title">我的</h1>
+            <p class="subtitle">{{ auth.isLoggedIn ? `欢迎回来，${nickname}` : '登录后查看订单状态、资产优惠和售后进度。' }}</p>
+          </div>
         </div>
-      </div>
 
-      <div class="actions" v-if="!auth.isLoggedIn">
-        <button class="primary" type="button" @click="goLogin">去登录</button>
-        <button class="ghost" type="button" @click="goRegister">去注册</button>
-      </div>
-      <div class="actions" v-else>
-        <button class="ghost" type="button" @click="logout">退出登录</button>
-      </div>
-    </section>
+        <div class="actions" v-if="!auth.isLoggedIn">
+          <button class="primary" type="button" @click="goLogin">去登录</button>
+          <button class="ghost" type="button" @click="goRegister">去注册</button>
+        </div>
+        <div class="actions" v-else>
+          <button class="ghost" type="button" @click="logout">退出登录</button>
+        </div>
+      </section>
 
-    <section class="overview" aria-label="账号数据">
-      <button class="stat" type="button" @click="goAuthed('orders')">
-        <span class="statValue">订单</span>
-        <span class="statLabel">{{ auth.isLoggedIn ? '查看全部订单' : '登录后查看' }}</span>
-      </button>
-      <button class="stat" type="button" @click="goAuthed('favorites')">
-        <span class="statValue">收藏</span>
-        <span class="statLabel">{{ auth.isLoggedIn ? '管理关注商品' : '登录后同步' }}</span>
-      </button>
-      <button class="stat" type="button" @click="goAuthed('messages')">
-        <span class="statValue">{{ unread > 0 ? unread : '消息' }}</span>
-        <span class="statLabel">{{ unread > 0 ? '条未读通知' : '消息中心' }}</span>
-      </button>
-    </section>
+      <section class="overview" aria-label="账号数据">
+        <button v-for="item in orderStats" :key="item.label" class="stat" type="button" @click="goAuthed('orders')">
+          <span class="statValue">{{ item.value }}</span>
+          <span class="statLabel">{{ item.label }}</span>
+        </button>
+      </section>
+    </div>
 
     <div class="layout">
       <section class="panel walletPanel" aria-label="资产信息">
         <div class="panelHead">
           <div>
             <h2 class="panelTitle">资产与记录</h2>
-            <p class="panelDesc">余额、交易流水和支付信息</p>
+            <p class="panelDesc">余额、优惠券、积分和消息</p>
           </div>
           <span class="badge" :class="{ on: auth.isLoggedIn }">{{ auth.isLoggedIn ? (wallet.loading ? '同步中' : '可用') : '未登录' }}</span>
         </div>
 
         <template v-if="auth.isLoggedIn">
           <div class="balance">{{ wallet.formattedBalance }}</div>
+          <div class="assetGrid" aria-label="账户资产">
+            <button v-for="item in assetItems" :key="item.label" class="assetItem" type="button" @click="item.label === '消息' ? goAuthed('messages') : undefined">
+              <span>{{ item.value }}</span>
+              <strong>{{ item.label }}</strong>
+            </button>
+          </div>
           <div v-if="latestTransactions.length" class="txList" aria-label="余额明细">
             <div v-for="tx in latestTransactions" :key="tx.id" class="txItem">
               <span>{{ tx.remark || tx.type }}</span>
@@ -105,16 +115,16 @@ onMounted(() => {
           <div v-else class="emptyLine">暂无交易明细</div>
         </template>
         <div v-else class="emptyBox">
-          <div class="emptyTitle">登录后查看资产</div>
-          <p>余额、优惠与交易记录会在这里集中展示。</p>
+          <div class="emptyTitle">登录后查看资产与优惠</div>
+          <p>余额、优惠券、积分和未读消息会集中展示在这里。</p>
         </div>
       </section>
 
       <section class="panel entryPanel" aria-label="个人中心入口">
         <div class="panelHead">
           <div>
-            <h2 class="panelTitle">常用入口</h2>
-            <p class="panelDesc">订单、收藏、消息与售后</p>
+            <h2 class="panelTitle">订单管理</h2>
+            <p class="panelDesc">订单、物流、收藏和售后</p>
           </div>
         </div>
         <div class="entries">
@@ -147,23 +157,23 @@ onMounted(() => {
       <section class="panel servicePanel" aria-label="服务说明">
         <div class="panelHead">
           <div>
-            <h2 class="panelTitle">服务信息</h2>
-            <p class="panelDesc">未登录也可查看基础服务入口</p>
+            <h2 class="panelTitle">服务中心</h2>
+            <p class="panelDesc">未登录也可先查看购物帮助</p>
           </div>
         </div>
         <div class="serviceList">
-          <div class="serviceItem">
+          <button class="serviceItem" type="button" @click="router.push({ name: 'helpCenter' })">
             <span>订单追踪</span>
             <strong>物流状态实时更新</strong>
-          </div>
-          <div class="serviceItem">
+          </button>
+          <button class="serviceItem" type="button" @click="goAuthed('aftersales')">
             <span>售后保障</span>
             <strong>退换修进度可查</strong>
-          </div>
-          <div class="serviceItem">
+          </button>
+          <button class="serviceItem" type="button" @click="goAuthed('messages')">
             <span>消息提醒</span>
             <strong>优惠、发货、售后通知</strong>
-          </div>
+          </button>
         </div>
       </section>
     </div>
@@ -175,6 +185,11 @@ onMounted(() => {
   padding: 16px;
   width: min(900px, 100%);
   margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.sideColumn {
   display: grid;
   gap: 14px;
 }
@@ -359,6 +374,36 @@ onMounted(() => {
   font-weight: 900;
 }
 
+.assetGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.assetItem {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  background: color-mix(in srgb, var(--code-bg) 45%, transparent);
+  color: var(--text-h);
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.assetItem span {
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.assetItem strong {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .txList {
   display: grid;
   gap: 8px;
@@ -467,8 +512,11 @@ onMounted(() => {
   border-radius: 8px;
   padding: 11px 12px;
   background: color-mix(in srgb, var(--code-bg) 45%, transparent);
+  color: inherit;
   display: grid;
   gap: 3px;
+  text-align: left;
+  cursor: pointer;
 }
 
 .serviceItem span {
@@ -489,23 +537,27 @@ onMounted(() => {
     max-width: none;
     padding: 28px 0 48px;
     grid-template-columns: minmax(300px, 0.86fr) minmax(0, 1.14fr);
+    align-items: start;
+    gap: 16px;
+  }
+
+  .sideColumn {
+    align-self: start;
     gap: 16px;
   }
 
   .profilePanel {
-    grid-column: 1;
     align-content: start;
+    align-self: start;
     padding: 18px;
   }
 
   .overview {
-    grid-column: 1;
     grid-template-columns: 1fr;
+    align-self: start;
   }
 
   .layout {
-    grid-column: 2;
-    grid-row: 1 / span 3;
     grid-template-columns: minmax(0, 1fr) minmax(300px, 0.9fr);
     align-content: start;
     gap: 16px;

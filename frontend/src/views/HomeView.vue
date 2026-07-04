@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
 import { useToastStore } from '../stores/toast'
 import { api } from '../lib/api'
@@ -29,7 +28,6 @@ type ProductCard = {
 }
 
 const router = useRouter()
-const auth = useAuthStore()
 const cart = useCartStore()
 const toast = useToastStore()
 
@@ -83,7 +81,6 @@ const products = ref<ProductCard[]>([])
 
 const priceFmt = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' })
 const hasProducts = computed(() => products.value.length > 0)
-const authText = computed(() => (auth.isLoggedIn ? '退出' : '登录'))
 const productCountText = computed(() => `${products.value.length || 0} 件精选`)
 
 const submitSearch = () => {
@@ -93,34 +90,9 @@ const submitSearch = () => {
 
 const formatRating = (rating: number) => `⭐ ${rating.toFixed(1)}`
 
-const onAuthClick = () => {
-  if (!auth.isLoggedIn) {
-    router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
-    return
-  }
-
-  const ok = window.confirm('确认退出登录？')
-  if (ok) auth.logout()
-}
-
 const goCategory = (c: CategoryShortcut) => {
-  if (c.id === 'c_phone') {
-    router.push({ name: 'phone' })
-    return
-  }
-  if (c.id === 'c_laptop') {
-    router.push({ name: 'computer' })
-    return
-  }
-  if (c.id === 'c_home') {
-    router.push({ name: 'appliance' })
-    return
-  }
-  if (c.id === 'c_more') {
-    router.push({ name: 'category' })
-    return
-  }
-  router.push({ name: 'category', query: { category: c.id } })
+  const query = c.id === 'c_more' ? undefined : { category: c.id }
+  router.push({ name: 'category', query })
 }
  
 const goProduct = (p: ProductCard) => {
@@ -207,21 +179,6 @@ onMounted(() => {
           </div>
         </section>
 
-        <aside class="servicePanel" aria-label="快捷服务">
-          <div class="serviceBlock">
-            <div class="serviceTitle">欢迎来到元气购</div>
-            <p class="serviceDesc">登录后查看订单、收藏和消息。</p>
-            <button class="serviceBtn" type="button" @click="onAuthClick">{{ authText }}</button>
-          </div>
-          <button class="serviceLink" type="button" @click="router.push({ name: 'messages' })">
-            消息中心
-            <span>查看通知</span>
-          </button>
-          <button class="serviceLink warm" type="button" @click="router.push({ name: 'cart' })">
-            购物车
-            <span>管理已选商品</span>
-          </button>
-        </aside>
       </section>
 
       <section class="cats" aria-label="快捷类目">
@@ -948,7 +905,6 @@ onMounted(() => {
 }
 
 .categoryRail,
-.servicePanel,
 .heroPanel,
 .bannerCard,
 .cat,
@@ -958,8 +914,7 @@ onMounted(() => {
   border-radius: var(--radius-xs);
 }
 
-.categoryRail,
-.servicePanel {
+.categoryRail {
   display: none;
 }
 
@@ -1040,7 +995,6 @@ onMounted(() => {
 
 .heroPrimary,
 .heroSecondary,
-.serviceBtn,
 .sectionMore,
 .actionBtn,
 .panelBtn {
@@ -1414,12 +1368,11 @@ onMounted(() => {
   }
 
   .storefront {
-    grid-template-columns: 196px minmax(0, 1fr) 220px;
+    grid-template-columns: 196px minmax(0, 1fr);
     align-items: stretch;
   }
 
-  .categoryRail,
-  .servicePanel {
+  .categoryRail {
     display: grid;
     border: 1px solid var(--border);
     background: var(--bg);
@@ -1472,7 +1425,7 @@ onMounted(() => {
 
   .heroPanel {
     min-height: 384px;
-    grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
+    grid-template-columns: minmax(0, 0.86fr) minmax(360px, 1.14fr);
   }
 
   .heroMedia {
@@ -1491,63 +1444,6 @@ onMounted(() => {
 
   .heroTitle {
     font-size: 44px;
-  }
-
-  .servicePanel {
-    align-content: start;
-    gap: 10px;
-    padding: 14px;
-  }
-
-  .serviceBlock {
-    display: grid;
-    gap: 9px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .serviceTitle {
-    color: var(--text-h);
-    font-weight: 900;
-    line-height: 1.35;
-  }
-
-  .serviceDesc {
-    color: var(--text);
-    font-size: 13px;
-    line-height: 1.5;
-  }
-
-  .serviceBtn {
-    min-height: 36px;
-    border: 0;
-    background: var(--accent);
-    color: #fff;
-    font-weight: 800;
-  }
-
-  .serviceLink {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xs);
-    background: color-mix(in srgb, var(--code-bg) 68%, var(--bg) 32%);
-    color: var(--text-h);
-    padding: 12px;
-    text-align: left;
-    display: grid;
-    gap: 4px;
-    cursor: pointer;
-    font-weight: 900;
-  }
-
-  .serviceLink span {
-    color: var(--text);
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  .serviceLink.warm {
-    border-color: color-mix(in srgb, var(--commerce-warm) 42%, var(--border) 58%);
-    background: var(--commerce-warm-bg);
   }
 
   .cats {
