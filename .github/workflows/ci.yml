@@ -30,8 +30,9 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  # 镜像名小写（GHCR 要求），owner 可能含大写需转小写
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/web-wenxuan
+  # 镜像名小写（GHCR 要求）。owner 含大写（如 Chowhound-G）会报错，需运行时转小写。
+  # 这里用静态前缀，build-images job 内会算出小写 OWNER 并覆盖 IMAGE_PREFIX。
+  IMAGE_PREFIX: ghcr.io/web-wenxuan
 
 jobs:
   # ──────────────────────────────────────────────────────────────
@@ -88,23 +89,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 计算小写镜像名（GHCR 要求全小写）
+        id: img
+        run: |
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "prefix=ghcr.io/${OWNER_LC}/web-wenxuan" >> "$GITHUB_OUTPUT"
+
       - name: 登录 GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }} # 内置 token，免配置
-
-      - name: 提取镜像元数据（tag）
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.IMAGE_PREFIX }}-backend
-            ${{ env.IMAGE_PREFIX }}-frontend
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=short
 
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -114,7 +110,7 @@ jobs:
         with:
           context: ./back
           push: true
-          tags: ${{ env.IMAGE_PREFIX }}-backend:latest,${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+          tags: ${{ steps.img.outputs.prefix }}-backend:latest,${{ steps.img.outputs.prefix }}-backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -125,7 +121,7 @@ jobs:
           context: .
           file: ./frontend/Dockerfile
           push: true
-          tags: ${{ env.IMAGE_PREFIX }}-frontend:latest,${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+          tags: ${{ steps.img.outputs.prefix }}-frontend:latest,${{ steps.img.outputs.prefix }}-frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -149,8 +145,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 生成服务器用 docker-compose（覆盖镜像名为 GHCR）
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
         run: |
-          IMAGE_PREFIX=$(echo "${{ env.IMAGE_PREFIX }}" | tr '[:upper:]' '[:lower:]')
+          OWNER_LC=$(echo "$OWNER_LC" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PREFIX="ghcr.io/${OWNER_LC}/web-wenxuan"
           mkdir -p deploy/autogen
           cat > deploy/autogen/docker-compose.cd.yml <<EOF
           services:
@@ -188,20 +187,25 @@ jobs:
 
       - name: SSH 登录服务器拉镜像并重启
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: OWNER_LC
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
+            OWNER_LC=$(echo "$OWNER_LC" | tr '[:upper:]' '[:lower:]')
+            IMAGE_PREFIX="ghcr.io/${OWNER_LC}/web-wenxuan"
 
             # 登录 GHCR 拉私有镜像（首次需配 ~/.docker/config.json）
             echo "${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || echo "GHCR 登录跳过（可能是公开镜像或已登录）"
 
             echo "📥 拉取最新镜像..."
-            docker pull $(echo "${{ env.IMAGE_PREFIX }}" | tr '[:upper:]' '[:lower:]')-backend:latest
-            docker pull $(echo "${{ env.IMAGE_PREFIX }}" | tr '[:upper:]' '[:lower:]')-frontend:latest
+            docker pull ${IMAGE_PREFIX}-backend:latest
+            docker pull ${IMAGE_PREFIX}-frontend:latest
 
             echo "🔄 重启服务..."
             docker compose -f docker-compose.cd.yml up -d --remove-orphans
