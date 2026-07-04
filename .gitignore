@@ -21,6 +21,7 @@ frontend/allure-results/
 frontend/playwright-report/
 frontend/test-results/
 frontend/tests/.auth/
+qa/zentao/out/
 frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local

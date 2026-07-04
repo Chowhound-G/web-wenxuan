@@ -4,9 +4,10 @@
 # 流水线：
 #   1. backend-test    — 后端 Maven 构建 + 单元测试（纯 Mockito，零外部依赖）
 #   2. frontend-smoke-tests — 前端 Playwright smoke + Allure HTML 报告
-#   3. build-images    — 构建前后端 Docker 镜像并推送 GHCR（依赖测试通过）
-#   4. deploy          — SSH 部署到服务器（仅 push main 触发，依赖镜像构建）
-#   5. notify-feishu   — 汇总 CI/CD 结果并发送飞书通知（配置 Webhook 后启用）
+#   3. zentao-test-management — 同步禅道测试用例 + 汇总执行情况（配置禅道密钥后启用）
+#   4. build-images    — 构建前后端 Docker 镜像并推送 GHCR（依赖测试通过）
+#   5. deploy          — SSH 部署到服务器（仅 push main 触发，依赖镜像构建）
+#   6. notify-feishu   — 汇总 CI/CD 结果并发送飞书通知（配置 Webhook 后启用）
 #
 # 镜像仓库：GHCR (ghcr.io)，与 GitHub 原生集成，免费
 # 部署方式：SSH 到服务器执行 docker pull + docker-compose up -d
@@ -18,6 +19,11 @@
 #   DEPLOY_PATH        服务器上项目路径（如 /opt/web-wenxuan）
 #   FEISHU_BOT_WEBHOOK 飞书自定义机器人 Webhook（可选，用于通知）
 #   FEISHU_BOT_SECRET  飞书自定义机器人签名密钥（可选，开启签名校验时填写）
+#   ZENTAO_URL         禅道登录页完整 URL（可选，用于同步测试用例）
+#   ZENTAO_USERNAME    禅道账号（可选）
+#   ZENTAO_PASSWORD    禅道密码（可选）
+#   ZENTAO_PRODUCT_ID  禅道产品 ID（可选，配置为 GitHub Variable）
+#   ZENTAO_CREATE_BUG_ON_FAILURE 测试失败时自动创建 Bug（可选 Variable，默认 true）
 
 name: CI/CD
 
@@ -163,7 +169,54 @@ jobs:
           retention-days: 14
 
   # ──────────────────────────────────────────────────────────────
-  # Job 3: 构建并推送 Docker 镜像（依赖测试通过）
+  # Job 3: 禅道测试用例同步 + CI 执行汇总（可选）
+  # ──────────────────────────────────────────────────────────────
+  zentao-test-management:
+    name: 禅道用例同步与执行汇总
+    needs: [backend-test, frontend-smoke-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    outputs:
+      summary_text: ${{ steps.sync_zentao.outputs.summary_text }}
+      report_url: ${{ steps.upload_zentao_report.outputs.artifact-url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 同步禅道测试用例并生成执行汇总
+        id: sync_zentao
+        env:
+          ZENTAO_URL: ${{ secrets.ZENTAO_URL }}
+          ZENTAO_USERNAME: ${{ secrets.ZENTAO_USERNAME }}
+          ZENTAO_PASSWORD: ${{ secrets.ZENTAO_PASSWORD }}
+          ZENTAO_PRODUCT_ID: ${{ vars.ZENTAO_PRODUCT_ID }}
+          ZENTAO_CREATE_BUG_ON_FAILURE: ${{ vars.ZENTAO_CREATE_BUG_ON_FAILURE }}
+          BACKEND_RESULT: ${{ needs.backend-test.result }}
+          FRONTEND_TEST_RESULT: ${{ needs.frontend-smoke-tests.result }}
+          ALLURE_REPORT_URL: ${{ needs.frontend-smoke-tests.outputs.allure_report_url }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.event.pull_request.title || 'manual run' }}
+        run: node qa/zentao/sync-testcases-and-report.mjs
+
+      - name: 上传禅道同步报告
+        id: upload_zentao_report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zentao-test-management
+          path: qa/zentao/out
+          if-no-files-found: error
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 4: 构建并推送 Docker 镜像（依赖测试通过）
   # ──────────────────────────────────────────────────────────────
   build-images:
     name: 构建并推送镜像
@@ -214,7 +267,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ──────────────────────────────────────────────────────────────
-  # Job 4: 部署到服务器（仅 main 分支 push 触发）
+  # Job 5: 部署到服务器（仅 main 分支 push 触发）
   # 策略：compose 文件常驻服务器，CD 只做"拉镜像 + 重启"，更稳
   # 需 GitHub Secrets: SERVER_HOST, SERVER_PORT, SERVER_USER, SSH_PRIVATE_KEY, DEPLOY_PATH, COMPOSE_FILE
   # 需 GitHub Variable: ENABLE_DEPLOY=true 启用部署
@@ -280,12 +333,12 @@ jobs:
             })
 
   # ──────────────────────────────────────────────────────────────
-  # Job 5: 飞书通知（可选）
+  # Job 6: 飞书通知（可选）
   # 配置 GitHub Secrets: FEISHU_BOT_WEBHOOK, FEISHU_BOT_SECRET(可选)
   # ──────────────────────────────────────────────────────────────
   notify-feishu:
     name: 飞书通知
-    needs: [backend-test, frontend-smoke-tests, build-images, deploy]
+    needs: [backend-test, frontend-smoke-tests, zentao-test-management, build-images, deploy]
     runs-on: ubuntu-latest
     if: always()
 
@@ -296,6 +349,9 @@ jobs:
           FEISHU_BOT_SECRET: ${{ secrets.FEISHU_BOT_SECRET }}
           BACKEND_RESULT: ${{ needs.backend-test.result }}
           FRONTEND_TEST_RESULT: ${{ needs.frontend-smoke-tests.result }}
+          ZENTAO_RESULT: ${{ needs.zentao-test-management.result }}
+          ZENTAO_SUMMARY: ${{ needs.zentao-test-management.outputs.summary_text }}
+          ZENTAO_REPORT_URL: ${{ needs.zentao-test-management.outputs.report_url }}
           BUILD_RESULT: ${{ needs.build-images.result }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
           ALLURE_REPORT_URL: ${{ needs.frontend-smoke-tests.outputs.allure_report_url }}
@@ -332,12 +388,13 @@ jobs:
           frontend = os.getenv("FRONTEND_TEST_RESULT", "unknown")
           build = os.getenv("BUILD_RESULT", "unknown")
           deploy = os.getenv("DEPLOY_RESULT", "unknown")
+          zentao = os.getenv("ZENTAO_RESULT", "unknown")
           enable_deploy = os.getenv("ENABLE_DEPLOY", "").lower() == "true"
           event_name = os.getenv("EVENT_NAME", "")
           ref_name = os.getenv("REF_NAME", "")
           deploy_expected = event_name == "push" and ref_name == "main" and enable_deploy
 
-          ok = backend == "success" and frontend == "success" and build == "success"
+          ok = backend == "success" and frontend == "success" and zentao == "success" and build == "success"
           ok = ok and (deploy == "success" if deploy_expected else deploy in ("success", "skipped"))
 
           run_url = f"{os.getenv('SERVER_URL')}/{os.getenv('REPOSITORY')}/actions/runs/{os.getenv('RUN_ID')}"
@@ -364,10 +421,12 @@ jobs:
               "",
               f"后端构建与测试：{backend}",
               f"前端 Smoke + Allure：{frontend}",
+              f"禅道用例同步：{zentao} {os.getenv('ZENTAO_SUMMARY', '').strip()}",
               f"构建并推送镜像：{build}",
               deploy_line,
               "",
               f"Allure 报告：{allure_report_url}",
+              f"禅道同步报告：{os.getenv('ZENTAO_REPORT_URL', '').strip() or run_url + '#artifacts'}",
               f"运行详情：{run_url}",
               f"线上地址：{os.getenv('SITE_URL')}",
           ])

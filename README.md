@@ -16,6 +16,7 @@
 - AI 客服、知识库文档管理、命中日志
 - GitHub Actions 自动测试、构建镜像、部署、飞书通知
 - Playwright + Allure 前端 smoke 测试报告
+- 禅道测试用例同步与 CI 执行汇总通知
 
 ## 技术栈
 
@@ -76,20 +77,28 @@ npx allure generate allure-results --clean -o allure-report
 
 CI/CD 会自动上传 `allure-report` artifact，并把报告入口发送到飞书机器人。
 
+禅道测试管理：
+
+- 用例清单：`qa/zentao/testcases.json`
+- 集成说明：[docs/zentao-integration.md](docs/zentao-integration.md)
+- CI 会创建缺失的禅道测试用例，并把同步结果和测试执行概况发送到飞书。
+
 ## 部署
 
 生产环境由 GitHub Actions 完成：
 
 1. 后端测试
 2. 前端 Playwright smoke + Allure 报告
-3. 构建并推送前后端镜像到 GHCR
-4. SSH 到服务器拉取镜像并重启
-5. 飞书发送结果通知
+3. 禅道测试用例同步与执行汇总
+4. 构建并推送前后端镜像到 GHCR
+5. SSH 到服务器拉取镜像并重启
+6. 飞书发送结果通知
 
 配置方式见：
 
 - [持续部署配置](deploy/CD-SETUP.md)
 - [飞书通知配置](deploy/FEISHU-NOTIFY.md)
+- [禅道测试管理集成](docs/zentao-integration.md)
 
 ## 目录
 
@@ -99,6 +108,7 @@ back/        Spring Boot 后端 API
 ai-service/  AI 客服服务
 deploy/      部署配置与说明
 docs/        设计、接口与运行文档
+qa/          测试管理与质量平台集成
 scripts/     本地辅助脚本
 ```
 
