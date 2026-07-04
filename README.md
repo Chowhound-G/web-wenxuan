@@ -1,5 +1,9 @@
 # ProjectKu Web
 
+![CI/CD](https://github.com/Chowhound-G/web-wenxuan/actions/workflows/ci.yml/badge.svg)
+
+**线上访问**：http://019f2bb81c537b9083731be895602f96.ap-northeast-1.a8g1v3.xyz
+
 ## Handoff
 
 If someone else is taking over or helping maintain this project, start with [HANDOFF.md](HANDOFF.md).
