@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 
 import UiButton from '../components/ui/UiButton.vue'
 import UiInput from '../components/ui/UiInput.vue'
-import UiPageHeader from '../components/ui/UiPageHeader.vue'
 import { useAuthStore } from '../stores/auth'
 
 type Mode = 'code' | 'password'
@@ -137,11 +136,18 @@ const goAgreement = () => {
 const goPrivacy = () => {
   router.push({ name: 'privacyPolicy', query: { redirect: redirectTo.value } })
 }
+
+const goBack = () => {
+  router.back()
+}
 </script>
 
 <template>
   <div class="page">
-    <UiPageHeader title="登录" />
+    <button class="backBtn" type="button" aria-label="返回" @click="goBack">
+      <span aria-hidden="true">‹</span>
+      返回
+    </button>
 
     <main class="main" aria-live="polite">
       <section class="card" aria-label="登录表单">
@@ -245,10 +251,37 @@ const goPrivacy = () => {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+.backBtn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 20;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 11px 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.backBtn span {
+  font-size: 20px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .main {
-  padding: 18px 16px 28px;
+  padding: 64px 16px 28px;
   display: grid;
   place-items: start center;
 }

@@ -31,6 +31,7 @@ const isActive = (name: string) => route.name === name
   min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -43,8 +44,9 @@ const isActive = (name: string) => route.name === name
 .item {
   flex: 0 0 auto;
   min-width: 56px;
+  min-height: 38px;
   padding: 9px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   text-decoration: none;
   color: var(--text);
   display: flex;
@@ -52,12 +54,13 @@ const isActive = (name: string) => route.name === name
   justify-content: center;
   font-size: 12px;
   letter-spacing: 0;
+  border-bottom: 3px solid transparent;
 }
 
 .item.active {
-  background: var(--accent-bg);
   color: var(--accent);
   font-weight: 800;
+  border-bottom-color: var(--accent);
 }
 
 .label {
@@ -71,7 +74,7 @@ const isActive = (name: string) => route.name === name
   }
 
   .item {
-    min-width: 104px;
+    min-width: 88px;
     padding: 10px 16px;
     font-size: 14px;
   }

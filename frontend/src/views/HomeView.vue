@@ -7,6 +7,7 @@ import { useCartStore } from '../stores/cart'
 import { useToastStore } from '../stores/toast'
 import { api } from '../lib/api'
 import { mapBackendProduct } from '../lib/productMapper'
+import heroMarketImage from '../assets/generated/hero-market.png'
 
 type LoadState = 'loading' | 'ready' | 'empty' | 'error'
 
@@ -186,8 +187,8 @@ onMounted(() => {
           <div class="heroMedia">
             <img
               class="heroImage"
-              src="https://images.pexels.com/photos/5082579/pexels-photo-5082579.jpeg?auto=compress&cs=tinysrgb&w=1200"
-              alt="现代桌面上的数码设备"
+              :src="heroMarketImage"
+              alt="精选数码家电与生活好物"
             />
           </div>
           <div class="heroCopy">
@@ -293,7 +294,6 @@ onMounted(() => {
             </button>
             <div class="actions">
               <button class="actionBtn" type="button" @click="addToCart(p)">加购</button>
-              <button class="actionBtn" type="button" @click="goProduct(p)">查看</button>
             </div>
           </article>
         </div>
@@ -684,9 +684,9 @@ onMounted(() => {
 }
 
 .tag {
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--accent-bg) 75%, transparent);
   color: var(--text-h);
@@ -696,7 +696,7 @@ onMounted(() => {
   padding: 10px 12px 12px;
   border-top: 1px solid var(--border);
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -1295,9 +1295,9 @@ onMounted(() => {
 }
 
 .tag {
-  font-size: 12px;
-  padding: 3px 7px;
-  border-radius: var(--radius-pill);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
   border: 1px solid var(--accent-border);
   background: var(--accent-bg);
   color: var(--accent);
@@ -1306,9 +1306,8 @@ onMounted(() => {
 .actions {
   padding: 8px 10px 10px;
   border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
 }
 
 .actionBtn {

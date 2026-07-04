@@ -41,11 +41,11 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
 
 <template>
   <div class="app">
-    <header class="brandbar" aria-label="平台品牌栏">
+    <header v-if="showNav" class="brandbar" aria-label="平台品牌栏">
       <div class="brandInner">
         <RouterLink class="brand" to="/" aria-label="元气购首页">元气购</RouterLink>
-        <BottomNav v-if="showNav" />
-        <div v-if="showNav" class="topActions" aria-label="顶部快捷入口">
+        <BottomNav />
+        <div class="topActions" aria-label="顶部快捷入口">
           <RouterLink class="topAction" to="/messages">消息</RouterLink>
           <button class="topAction primary" type="button" @click="onAuthClick">{{ authText }}</button>
         </div>
@@ -97,6 +97,7 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
 
 .brandInner :deep(.nav) {
   flex: 1 1 auto;
+  justify-self: center;
 }
 
 .topActions {
@@ -144,8 +145,10 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
 
   .brandInner {
     width: min(1180px, calc(100% - 48px));
+    display: grid;
+    grid-template-columns: 160px minmax(0, 1fr) 160px;
     padding: 0;
-    gap: 32px;
+    gap: 24px;
   }
 
   .brand {
@@ -153,6 +156,7 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
   }
 
   .topActions {
+    justify-content: flex-end;
     gap: 8px;
   }
 
