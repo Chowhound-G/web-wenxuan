@@ -5,6 +5,7 @@
 #   1. backend-test    — 后端 Maven 构建 + 单元测试（纯 Mockito，零外部依赖）
 #   2. build-images    — 构建前后端 Docker 镜像并推送 GHCR（依赖测试通过）
 #   3. deploy          — SSH 部署到服务器（仅 push main 触发，依赖镜像构建）
+#   4. notify-feishu   — 汇总 CI/CD 结果并发送飞书通知（配置 Webhook 后启用）
 #
 # 镜像仓库：GHCR (ghcr.io)，与 GitHub 原生集成，免费
 # 部署方式：SSH 到服务器执行 docker pull + docker-compose up -d
@@ -14,6 +15,8 @@
 #   SERVER_USER        SSH 用户（如 root 或 deploy）
 #   SSH_PRIVATE_KEY    SSH 私钥（对应服务器 authorized_keys 的公钥）
 #   DEPLOY_PATH        服务器上项目路径（如 /opt/web-wenxuan）
+#   FEISHU_BOT_WEBHOOK 飞书自定义机器人 Webhook（可选，用于通知）
+#   FEISHU_BOT_SECRET  飞书自定义机器人签名密钥（可选，开启签名校验时填写）
 
 name: CI/CD
 
@@ -22,6 +25,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # 同分支新推送取消旧运行，省额度
 concurrency:
@@ -190,3 +194,123 @@ jobs:
               body: `部署到生产服务器失败，请检查。\n\n提交: ${context.payload.head_commit.message}\n运行: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               labels: ['deployment', 'bug']
             })
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 4: 飞书通知（可选）
+  # 配置 GitHub Secrets: FEISHU_BOT_WEBHOOK, FEISHU_BOT_SECRET(可选)
+  # ──────────────────────────────────────────────────────────────
+  notify-feishu:
+    name: 飞书通知
+    needs: [backend-test, build-images, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 发送 CI/CD 结果到飞书
+        env:
+          FEISHU_BOT_WEBHOOK: ${{ secrets.FEISHU_BOT_WEBHOOK }}
+          FEISHU_BOT_SECRET: ${{ secrets.FEISHU_BOT_SECRET }}
+          BACKEND_RESULT: ${{ needs.backend-test.result }}
+          BUILD_RESULT: ${{ needs.build-images.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          ENABLE_DEPLOY: ${{ vars.ENABLE_DEPLOY }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SERVER_URL: ${{ github.server_url }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.event.pull_request.title || 'manual run' }}
+          SITE_URL: http://019f2bb81c537b9083731be895602f96.ap-northeast-1.a8g1v3.xyz
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import hmac
+          import json
+          import os
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          webhook = os.getenv("FEISHU_BOT_WEBHOOK", "").strip()
+          if not webhook:
+              print("FEISHU_BOT_WEBHOOK is not configured; skip Feishu notification.")
+              sys.exit(0)
+
+          backend = os.getenv("BACKEND_RESULT", "unknown")
+          build = os.getenv("BUILD_RESULT", "unknown")
+          deploy = os.getenv("DEPLOY_RESULT", "unknown")
+          enable_deploy = os.getenv("ENABLE_DEPLOY", "").lower() == "true"
+          event_name = os.getenv("EVENT_NAME", "")
+          ref_name = os.getenv("REF_NAME", "")
+          deploy_expected = event_name == "push" and ref_name == "main" and enable_deploy
+
+          ok = backend == "success" and build == "success"
+          ok = ok and (deploy == "success" if deploy_expected else deploy in ("success", "skipped"))
+
+          run_url = f"{os.getenv('SERVER_URL')}/{os.getenv('REPOSITORY')}/actions/runs/{os.getenv('RUN_ID')}"
+          short_sha = os.getenv("SHA", "")[:7]
+          title = "CI/CD 成功" if ok else "CI/CD 失败"
+          status_icon = "SUCCESS" if ok else "FAILED"
+
+          commit_message = os.getenv("COMMIT_MESSAGE", "").strip().splitlines()[0]
+          if len(commit_message) > 120:
+              commit_message = commit_message[:117] + "..."
+
+          deploy_line = f"部署到服务器：{deploy}"
+          if not deploy_expected and deploy == "skipped":
+              deploy_line = "部署到服务器：skipped（当前触发条件不部署）"
+
+          text = "\n".join([
+              f"[{status_icon}] {title}",
+              f"仓库：{os.getenv('REPOSITORY')}",
+              f"工作流：{os.getenv('WORKFLOW')} #{os.getenv('RUN_NUMBER')}",
+              f"分支：{ref_name}",
+              f"触发：{event_name} / {os.getenv('ACTOR')}",
+              f"提交：{short_sha} {commit_message}",
+              "",
+              f"后端构建与测试：{backend}",
+              f"构建并推送镜像：{build}",
+              deploy_line,
+              "",
+              f"运行详情：{run_url}",
+              f"线上地址：{os.getenv('SITE_URL')}",
+          ])
+
+          payload = {
+              "msg_type": "text",
+              "content": {"text": text},
+          }
+
+          secret = os.getenv("FEISHU_BOT_SECRET", "").strip()
+          if secret:
+              timestamp = str(int(time.time()))
+              string_to_sign = f"{timestamp}\n{secret}"
+              sign = base64.b64encode(
+                  hmac.new(string_to_sign.encode("utf-8"), digestmod=hashlib.sha256).digest()
+              ).decode("utf-8")
+              payload["timestamp"] = timestamp
+              payload["sign"] = sign
+
+          req = urllib.request.Request(
+              webhook,
+              data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(req, timeout=15) as resp:
+                  body = resp.read().decode("utf-8", errors="replace")
+                  print(body)
+                  if resp.status >= 300:
+                      raise RuntimeError(f"Feishu webhook HTTP {resp.status}: {body}")
+          except urllib.error.HTTPError as exc:
+              body = exc.read().decode("utf-8", errors="replace")
+              raise RuntimeError(f"Feishu webhook HTTP {exc.code}: {body}") from exc
+          PY

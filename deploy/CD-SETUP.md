@@ -147,6 +147,8 @@ GitHub Actions 会自动：
 
 在 `https://github.com/Chowhound-G/web-wenxuan/actions` 查看运行状态。
 
+如需把 CI/CD 结果推送到飞书群，参考 `deploy/FEISHU-NOTIFY.md` 配置 `FEISHU_BOT_WEBHOOK` 和可选的 `FEISHU_BOT_SECRET`。
+
 ---
 
 ## 运维命令（部署后在服务器上用）
