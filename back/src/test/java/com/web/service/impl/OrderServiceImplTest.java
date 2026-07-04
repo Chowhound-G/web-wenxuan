@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -75,7 +76,7 @@ class OrderServiceImplTest {
         couponCheck.put("reason", null);
 
         when(cartItemMapper.getListByUserId(1L)).thenReturn(List.of(cartItem));
-        when(productMapper.getById(10L)).thenReturn(product);
+        when(productMapper.getByIds(anyList())).thenReturn(List.of(product));
         when(couponService.checkCoupon(eq(1L), eq("SAVE300"), eq(new BigDecimal("3000.00"))))
                 .thenReturn(couponCheck);
         when(couponService.useCoupon(eq(1L), eq("SAVE300"), eq(new BigDecimal("3000.00"))))
@@ -113,7 +114,7 @@ class OrderServiceImplTest {
         couponCheck.put("reason", "未达到优惠券使用门槛金额");
 
         when(cartItemMapper.getListByUserId(1L)).thenReturn(List.of(cartItem));
-        when(productMapper.getById(10L)).thenReturn(product);
+        when(productMapper.getByIds(anyList())).thenReturn(List.of(product));
         when(productMapper.decreaseStockIfEnough(10L, 1)).thenReturn(1);
         when(couponService.checkCoupon(eq(1L), eq("SAVE300"), eq(new BigDecimal("2999.00"))))
                 .thenReturn(couponCheck);
@@ -141,7 +142,7 @@ class OrderServiceImplTest {
         product.setStock(1);
 
         when(cartItemMapper.getListByUserId(1L)).thenReturn(List.of(cartItem));
-        when(productMapper.getById(10L)).thenReturn(product);
+        when(productMapper.getByIds(anyList())).thenReturn(List.of(product));
         when(productMapper.decreaseStockIfEnough(10L, 1)).thenReturn(0);
 
         BusinessException exception = assertThrows(
