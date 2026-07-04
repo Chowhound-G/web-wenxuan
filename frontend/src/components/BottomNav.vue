@@ -14,9 +14,6 @@ const isActive = (name: string) => route.name === name
     <RouterLink class="item" :class="{ active: isActive('category') }" to="/category">
       <span class="label">类目</span>
     </RouterLink>
-    <RouterLink class="item" :class="{ active: isActive('search') }" to="/search">
-      <span class="label">搜索</span>
-    </RouterLink>
     <RouterLink class="item" :class="{ active: isActive('cart') }" to="/cart">
       <span class="label">购物车</span>
     </RouterLink>

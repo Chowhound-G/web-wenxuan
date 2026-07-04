@@ -7,7 +7,7 @@ import { useCartStore } from '../stores/cart'
 import { useToastStore } from '../stores/toast'
 import { api } from '../lib/api'
 import { mapBackendProduct } from '../lib/productMapper'
-import heroMarketImage from '../assets/generated/hero-market.png'
+import heroBannerImage from '../assets/generated/hero-banner-products.jpg'
 
 type LoadState = 'loading' | 'ready' | 'empty' | 'error'
 
@@ -187,7 +187,7 @@ onMounted(() => {
           <div class="heroMedia">
             <img
               class="heroImage"
-              :src="heroMarketImage"
+              :src="heroBannerImage"
               alt="精选数码家电与生活好物"
             />
           </div>

@@ -51,6 +51,7 @@ const active = ref<string>('')
 const activeSub = ref<string>('全部')
 const sortKey = ref<'default' | 'sales' | 'priceAsc' | 'priceDesc' | 'rating'>('default')
 const tagFilter = ref<string>('全部')
+const keyword = ref('')
 
 const all = ref<Product[]>([])
 
@@ -72,6 +73,7 @@ const priceFmt = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: '
 const formatRating = (rating: number) => `⭐ ${rating.toFixed(1)}`
 
 const activeCategory = computed(() => categories.value.find((c) => c.id === active.value) ?? null)
+const resultCountText = computed(() => `${filtered.value.length} 件商品`)
 
 watch(
   active,
@@ -97,6 +99,13 @@ const tagOptions = computed(() => {
 
 const filtered = computed(() => {
   let items = all.value.filter((p) => p.categoryId === active.value)
+  const q = keyword.value.trim().toLowerCase()
+  if (q) {
+    items = items.filter((p) => {
+      const haystack = [p.title, p.sub, ...p.tags].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(q)
+    })
+  }
   if (activeSub.value !== '全部') {
     const sub = activeSub.value
     items = items.filter((p) => (p.sub ? p.sub === sub : p.tags.includes(sub)))
@@ -115,6 +124,13 @@ const filtered = computed(() => {
 
 const setCategory = (id: string) => {
   router.replace({ name: 'category', query: { category: id } })
+}
+
+const clearFilters = () => {
+  keyword.value = ''
+  activeSub.value = '全部'
+  tagFilter.value = '全部'
+  sortKey.value = 'default'
 }
 
 const goProduct = (p: Product) => {
@@ -174,43 +190,69 @@ watch(active, () => {
 <template>
   <div class="page">
     <section class="head" aria-label="类目选择">
-      <div class="title">类目</div>
+      <div class="headTop">
+        <div>
+          <div class="eyebrow">Category</div>
+          <h1 class="title">类目筛选</h1>
+        </div>
+        <span class="count">{{ resultCountText }}</span>
+      </div>
+
+      <label class="searchBox">
+        <span class="searchLabel">搜索</span>
+        <input
+          v-model="keyword"
+          class="searchInput"
+          type="search"
+          inputmode="search"
+          autocomplete="off"
+          placeholder="搜索商品、标签或子类目"
+        />
+      </label>
+
       <div class="tabs">
-        <UiButton
+        <button
           v-for="c in categories"
           :key="c.id"
-          size="sm"
+          class="tab"
+          :class="{ on: active === c.id }"
           type="button"
-          :disabled="active === c.id"
           @click="setCategory(c.id)"
         >
           {{ c.name }}
-        </UiButton>
+        </button>
       </div>
+
       <div class="toolbar" aria-label="筛选与排序">
-        <div class="chipRow" aria-label="子类目">
-          <button
-            v-for="s in subOptions"
-            :key="s"
-            class="chip"
-            :class="{ on: activeSub === s }"
-            type="button"
-            @click="activeSub = s"
-          >
-            {{ s }}
-          </button>
+        <div class="filterBlock">
+          <div class="filterTitle">子类目</div>
+          <div class="chipRow" aria-label="子类目">
+            <button
+              v-for="s in subOptions"
+              :key="s"
+              class="chip"
+              :class="{ on: activeSub === s }"
+              type="button"
+              @click="activeSub = s"
+            >
+              {{ s }}
+            </button>
+          </div>
         </div>
-        <div class="chipRow" aria-label="标签筛选">
-          <button
-            v-for="t in tagOptions"
-            :key="t"
-            class="chip"
-            :class="{ on: tagFilter === t }"
-            type="button"
-            @click="tagFilter = t"
-          >
-            {{ t }}
-          </button>
+        <div class="filterBlock">
+          <div class="filterTitle">标签</div>
+          <div class="chipRow" aria-label="标签筛选">
+            <button
+              v-for="t in tagOptions"
+              :key="t"
+              class="chip"
+              :class="{ on: tagFilter === t }"
+              type="button"
+              @click="tagFilter = t"
+            >
+              {{ t }}
+            </button>
+          </div>
         </div>
         <div class="sortRow" aria-label="排序">
           <span class="sortLabel">排序</span>
@@ -234,6 +276,7 @@ watch(active, () => {
           >
             价格↓
           </button>
+          <button class="resetBtn" type="button" @click="clearFilters">重置</button>
         </div>
       </div>
     </section>
@@ -241,7 +284,7 @@ watch(active, () => {
     <main class="content" aria-live="polite">
       <UiEmptyState v-if="state === 'loading'" title="加载中..." desc="正在获取该类目商品" />
       <UiEmptyState v-else-if="state === 'error'" title="加载失败" desc="网络开小差了，请重试" action-text="重试" @action="retry" />
-      <UiEmptyState v-else-if="filtered.length === 0" title="暂无商品" desc="请选择其他类目看看" />
+      <UiEmptyState v-else-if="filtered.length === 0" title="暂无商品" desc="换个关键词或筛选条件试试" />
 
       <div v-else class="grid" aria-label="商品列表">
         <article v-for="p in filtered" :key="p.id" class="card">
@@ -260,7 +303,6 @@ watch(active, () => {
           </button>
           <div class="actions">
             <UiButton size="sm" type="button" @click="addToCart(p)">加购</UiButton>
-            <UiButton size="sm" type="button" @click="goProduct(p)">查看</UiButton>
           </div>
         </article>
       </div>
@@ -272,34 +314,119 @@ watch(active, () => {
 .page {
   padding: 14px 16px 28px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .title {
   margin: 0;
-  font-size: var(--font-xl);
+  font-size: 26px;
+  line-height: 1.15;
   color: var(--text-h);
   font-weight: 900;
 }
 
 .head {
   display: grid;
+  gap: 12px;
+}
+
+.headTop {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.count {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 9px;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.searchBox {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
   gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.searchLabel {
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.searchInput {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-h);
+  font-size: 14px;
 }
 
 .tabs {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.tab {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tab.on {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: var(--accent-bg);
 }
 
 .toolbar {
   display: grid;
-  gap: 10px;
-  padding: 12px 12px;
+  gap: 12px;
+  padding: 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  background: color-mix(in srgb, var(--code-bg) 70%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--code-bg) 62%, transparent);
+}
+
+.filterBlock {
+  display: grid;
+  gap: 7px;
+}
+
+.filterTitle {
+  color: var(--text-h);
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .chipRow {
@@ -311,11 +438,13 @@ watch(active, () => {
 .chip {
   border: 1px solid var(--border);
   background: var(--bg);
-  border-radius: var(--radius-pill);
-  padding: 6px 10px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 11px;
+  line-height: 18px;
   cursor: pointer;
   color: var(--text);
+  font-weight: 700;
 }
 
 .chip.on {
@@ -342,11 +471,13 @@ watch(active, () => {
 .sortBtn {
   border: 1px solid var(--border);
   background: var(--bg);
-  border-radius: var(--radius-pill);
-  padding: 6px 10px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 11px;
+  line-height: 18px;
   cursor: pointer;
   color: var(--text);
+  font-weight: 700;
 }
 
 .sortBtn.on {
@@ -354,6 +485,17 @@ watch(active, () => {
   background: var(--accent-bg);
   color: var(--text-h);
   font-weight: 800;
+}
+
+.resetBtn {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 6px 2px;
 }
 
 .content {
@@ -427,7 +569,7 @@ watch(active, () => {
   background: color-mix(in srgb, var(--code-bg) 80%, transparent);
   border: 1px solid var(--border);
   padding: 4px 8px;
-  border-radius: var(--radius-pill);
+  border-radius: 8px;
 }
 
 .tags {
@@ -437,9 +579,10 @@ watch(active, () => {
 }
 
 .tag {
-  font-size: var(--font-xs);
-  padding: 3px 8px;
-  border-radius: var(--radius-pill);
+  font-size: 11px;
+  line-height: 17px;
+  padding: 2px 7px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--accent-bg) 75%, transparent);
   color: var(--text-h);
@@ -471,7 +614,7 @@ watch(active, () => {
 
   .head {
     border: 1px solid var(--border);
-    border-radius: var(--radius-xs);
+    border-radius: 10px;
     background: var(--bg);
     padding: 16px;
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
@@ -481,9 +624,8 @@ watch(active, () => {
     gap: 8px;
   }
 
-  .tabs :deep(.btn.sm) {
-    border-radius: var(--radius-xs);
-    padding: 8px 11px;
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .grid {

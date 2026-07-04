@@ -97,6 +97,11 @@ const requestText = async (url, options = {}, jar = null) => {
   return { res, text }
 }
 
+const hasTraditionalLoginRedirect = (text) =>
+  text.includes("self.location='/zentao/'") || text.includes('self.location="/zentao/"')
+
+const hasLoginError = (text) => /登录失败|密码错误|密码不正确|用户不存在|账号不存在|用户名或密码/.test(text)
+
 const loginSession = async (baseURL) => {
   const jar = {}
   await requestText(`${baseURL}/index.php?m=user&f=login`, {}, jar)
@@ -121,8 +126,12 @@ const loginSession = async (baseURL) => {
     jar,
   )
 
-  if (!text.includes("self.location='/zentao/'") && !text.includes('self.location="/zentao/"')) {
+  if (hasLoginError(text)) {
     throw new Error(`禅道传统接口登录失败: ${text.slice(0, 200)}`)
+  }
+
+  if (!hasTraditionalLoginRedirect(text) && Object.keys(jar).length === 0) {
+    throw new Error('禅道传统接口登录失败: 未获取到会话 Cookie')
   }
 
   return jar
