@@ -141,7 +141,7 @@ const send = async () => {
 .customer-service {
   position: fixed;
   right: 18px;
-  bottom: calc(var(--bottom-nav-h, 64px) + 18px);
+  bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 80;
   font-size: 14px;
 }
@@ -323,7 +323,7 @@ const send = async () => {
 @media (max-width: 520px) {
   .customer-service {
     right: 12px;
-    bottom: calc(var(--bottom-nav-h, 64px) + 12px);
+    bottom: max(12px, env(safe-area-inset-bottom));
   }
 
   .chat-card {

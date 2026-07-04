@@ -596,11 +596,45 @@ onMounted(() => {
 }
 
 @media (min-width: 920px) {
+  .page {
+    align-items: center;
+  }
+
+  .topbar {
+    width: min(1180px, calc(100% - 48px));
+    margin: 18px auto 0;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .search {
+    max-width: 680px;
+  }
+
   .content {
-    padding: 20px 24px 28px;
-    max-width: 1120px;
+    padding: 20px 24px 40px;
+    max-width: 1180px;
     margin: 0 auto;
     width: 100%;
+    gap: 20px;
+  }
+
+  .bannerTrack {
+    grid-auto-flow: initial;
+    grid-auto-columns: initial;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .bannerCard {
+    min-height: 150px;
+    padding: 24px;
+  }
+
+  .bannerTitle {
+    font-size: 22px;
   }
 
   .cats {
@@ -613,6 +647,16 @@ onMounted(() => {
 
   .cover {
     height: 170px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .cover {
+    height: 184px;
   }
 }
 </style>

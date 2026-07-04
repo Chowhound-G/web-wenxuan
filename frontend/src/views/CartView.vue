@@ -203,6 +203,69 @@ const dec = (itemId: string, current: number) => {
   font-weight: 900;
 }
 
-</style>
+@media (min-width: 1024px) {
+  .page {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    padding: 32px 32px 48px;
+  }
 
+  .title {
+    font-size: 28px;
+    margin-bottom: 18px;
+  }
+
+  .list {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    align-items: start;
+    gap: 18px;
+  }
+
+  .item {
+    grid-column: 1;
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 18px;
+    border-radius: 12px;
+  }
+
+  .cover {
+    width: 128px;
+    height: 128px;
+  }
+
+  .meta {
+    padding: 18px 18px 18px 0;
+    gap: 12px;
+  }
+
+  .name {
+    font-size: 16px;
+  }
+
+  .footer {
+    grid-column: 2;
+    grid-row: 1 / span 20;
+    position: sticky;
+    top: calc(var(--app-brandbar-h, 64px) + 76px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: grid;
+    gap: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .footer :deep(.btn) {
+    width: 100%;
+  }
+
+  .total {
+    gap: 6px;
+  }
+
+  .totalVal {
+    font-size: 28px;
+  }
+}
+</style>
 

@@ -672,7 +672,7 @@ onMounted(() => {
 }
 
 .wrap {
-  max-width: 1022px;
+  max-width: 1180px;
   margin: 0 auto;
   display: grid;
   gap: 24px;
@@ -725,14 +725,14 @@ onMounted(() => {
 
 .headerSticky {
   position: sticky;
-  top: 0;
+  top: var(--app-brandbar-h, 0px);
   background: var(--bg);
   z-index: 100;
   border-bottom: 1px solid var(--border);
 }
 
 .headerContent {
-  max-width: 1022px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 16px;
   display: flex;
@@ -1450,10 +1450,23 @@ onMounted(() => {
 }
 
 @media (min-width: 1024px) {
+  .content {
+    padding: 48px 32px;
+  }
+
+  .productCard,
+  .reviewsSection {
+    border-radius: 12px;
+  }
+
   .cols {
-    grid-template-columns: 463px 463px;
-    gap: 32px;
+    grid-template-columns: minmax(480px, 560px) minmax(0, 1fr);
+    gap: 40px;
     align-items: start;
+  }
+
+  .heroImg {
+    height: 560px;
   }
 
   .reviewsSummary {
@@ -1461,7 +1474,8 @@ onMounted(() => {
   }
 
   .skuGrid {
-    grid-template-columns: 225.5px 225.5px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: 12px;
     row-gap: 12px;
   }
@@ -1473,4 +1487,3 @@ onMounted(() => {
   }
 }
 </style>
-

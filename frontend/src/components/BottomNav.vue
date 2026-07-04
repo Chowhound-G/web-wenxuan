@@ -56,4 +56,29 @@ const isActive = (name: string) => route.name === name
 .label {
   font-size: 12px;
 }
+
+@media (min-width: 1024px) {
+  .nav {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 32px;
+  }
+
+  .item {
+    min-width: 104px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+  }
+
+  .item.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+
+  .label {
+    font-size: 14px;
+  }
+}
 </style>

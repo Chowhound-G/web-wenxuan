@@ -74,4 +74,21 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
   flex: 1 1 auto;
   min-height: 0;
 }
+
+@media (min-width: 1024px) {
+  .app {
+    --app-brandbar-h: 64px;
+    background: color-mix(in srgb, var(--code-bg) 38%, var(--bg) 62%);
+  }
+
+  .brandbar {
+    justify-content: center;
+    padding: 0 32px;
+  }
+
+  .brand {
+    width: min(1180px, 100%);
+    font-size: 20px;
+  }
+}
 </style>
