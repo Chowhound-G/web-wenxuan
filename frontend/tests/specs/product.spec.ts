@@ -99,6 +99,39 @@ test.describe('商品模块 @TC-PROD', () => {
       await expect(page.locator('.h1')).toBeVisible()
     })
 
+    test('TC-PROD-021 回归：游客访问详情页时评价 401 不跳登录', async ({ cleanPage: page }) => {
+      await page.route('**/v1/products/1', (r) =>
+        r.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 200,
+            data: {
+              id: 1,
+              name: '回归测试商品',
+              description: '用于验证游客浏览详情页不被评价接口拦截',
+              price: 199,
+              originalPrice: 299,
+              stock: 8,
+              skus: [{ id: 1, attrs: { 规格: '默认' }, price: 199, stock: 8 }],
+            },
+          }),
+        }),
+      )
+      await page.route('**/v1/reviews*', (r) =>
+        r.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: '{"code":401,"message":"未登录"}',
+        }),
+      )
+
+      await page.goto(testConfig.routes.productDetail(1))
+
+      await expect(page.locator('h1.h1')).toHaveText('回归测试商品')
+      await expect(page).toHaveURL(/\/products\/1$/)
+    })
+
     test('TC-PROD-008 逆向：商品 id 非数字显示不存在', async ({ cleanPage: page }) => {
       await page.goto(`${testConfig.routes.productDetail('abc')}`)
       await expect(page.getByText('商品不存在')).toBeVisible()

@@ -31,5 +31,5 @@ window.addEventListener('app:unauthorized', () => {
     ? '/'
     : current.fullPath
 
-  router.push({ name: 'login', query: { redirect: targetRedirect } })
+  router.replace({ name: 'login', query: { redirect: targetRedirect } })
 })

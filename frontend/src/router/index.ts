@@ -187,14 +187,14 @@ router.beforeEach((to) => {
   if (to.meta?.requiresAdmin && !adminAuth.isAdminLoggedIn) {
     const toast = useToastStore()
     toast.push({ type: 'info', message: '请先登录管理员后台' })
-    return { name: 'adminLogin', query: { redirect: to.fullPath } }
+    return { name: 'adminLogin', query: { redirect: to.fullPath }, replace: true }
   }
 
   const auth = useAuthStore()
   if (to.meta?.requiresAuth && !auth.hasToken) {
     const toast = useToastStore()
     toast.push({ type: 'info', message: '请先登录后再进行操作' })
-    return { name: 'login', query: { redirect: to.fullPath } }
+    return { name: 'login', query: { redirect: to.fullPath }, replace: true }
   }
 })
 
