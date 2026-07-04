@@ -1,17 +1,21 @@
-# 元气购电商平台 CI 流水线
+# 元气购电商平台 CI/CD 流水线
 #
 # 触发：push 到 main / 任意 Pull Request
-# 三个 Job：
+# 流水线：
 #   1. backend-test    — 后端 Maven 构建 + 单元测试（纯 Mockito，零外部依赖）
-#   2. backend-image   — 后端 Docker 镜像构建验证（依赖 backend-test 通过）
-#   3. frontend-image  — 前端 Docker 镜像构建验证（与后端并行）
+#   2. build-images    — 构建前后端 Docker 镜像并推送 GHCR（依赖测试通过）
+#   3. deploy          — SSH 部署到服务器（仅 push main 触发，依赖镜像构建）
 #
-# 设计说明：
-#   - 后端测试是 Mockito 单测，无需 MySQL/H2，CI 轻量快速
-#   - Docker 镜像只构建验证、不推送（暂不做 CD）
-#   - 前端 Dockerfile 的 build context 是仓库根（COPY frontend/... + deploy/nginx.conf）
+# 镜像仓库：GHCR (ghcr.io)，与 GitHub 原生集成，免费
+# 部署方式：SSH 到服务器执行 docker pull + docker-compose up -d
+#
+# 需要 GitHub Secrets（部署相关，见 deploy/CD-SETUP.md）：
+#   SERVER_HOST        服务器公网 IP
+#   SERVER_USER        SSH 用户（如 root 或 deploy）
+#   SSH_PRIVATE_KEY    SSH 私钥（对应服务器 authorized_keys 的公钥）
+#   DEPLOY_PATH        服务器上项目路径（如 /opt/web-wenxuan）
 
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -21,8 +25,13 @@ on:
 
 # 同分支新推送取消旧运行，省额度
 concurrency:
-  group: ci-${{ github.ref }}
+  group: cicd-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  # 镜像名小写（GHCR 要求），owner 可能含大写需转小写
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/web-wenxuan
 
 jobs:
   # ──────────────────────────────────────────────────────────────
@@ -54,8 +63,6 @@ jobs:
           restore-keys: ${{ runner.os }}-maven-
 
       - name: Maven 编译 + 测试（verify）
-        # 测试为纯 Mockito 单测，无需数据库
-        # 注意：OrderServiceImplTest 有 3 个已知失败（源码重构后测试未同步），用 continue-on-error 让报告可见但不阻塞
         run: mvn -B clean verify
 
       - name: 上传测试报告
@@ -66,71 +73,156 @@ jobs:
           path: back/target/surefire-reports
           if-no-files-found: ignore
 
-      - name: 上传构建产物（jar）
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-jar
-          path: back/target/*.jar
-          if-no-files-found: warn
-
   # ──────────────────────────────────────────────────────────────
-  # Job 2: 后端 Docker 镜像构建验证
+  # Job 2: 构建并推送 Docker 镜像（依赖测试通过）
   # ──────────────────────────────────────────────────────────────
-  backend-image:
-    name: 后端镜像构建
-    runs-on: ubuntu-latest
+  build-images:
+    name: 构建并推送镜像
     needs: backend-test
-    # 即使测试有已知失败，镜像构建仍能独立验证（Dockerfile 内部 -DskipTests）
-    if: always()
+    runs-on: ubuntu-latest
+    # 镜像 tag：main 分支用 latest + sha，PR 用 pr-<num>
+    permissions:
+      contents: read
+      packages: write # 推送 GHCR 需要
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # 内置 token，免配置
+
+      - name: 提取镜像元数据（tag）
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.IMAGE_PREFIX }}-backend
+            ${{ env.IMAGE_PREFIX }}-frontend
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 构建后端镜像（context=back/）
+      - name: 构建并推送后端镜像
         uses: docker/build-push-action@v6
         with:
           context: ./back
-          push: false
-          tags: web-wenxuan-backend:ci
-          load: true
+          push: true
+          tags: ${{ env.IMAGE_PREFIX }}-backend:latest,${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: 验证镜像可启动
-        run: |
-          docker images web-wenxuan-backend:ci
-          echo "✅ 后端镜像构建成功"
-
-  # ──────────────────────────────────────────────────────────────
-  # Job 3: 前端 Docker 镜像构建验证
-  # ──────────────────────────────────────────────────────────────
-  frontend-image:
-    name: 前端镜像构建
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 设置 Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 构建前端镜像（context=仓库根，file=frontend/Dockerfile）
-        # 关键：frontend/Dockerfile 内 COPY frontend/... 和 deploy/nginx.conf 都是相对仓库根的路径
+      - name: 构建并推送前端镜像
+        # context=仓库根，file=frontend/Dockerfile（COPY frontend/... + deploy/nginx.conf）
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./frontend/Dockerfile
-          push: false
-          tags: web-wenxuan-frontend:ci
-          load: true
+          push: true
+          tags: ${{ env.IMAGE_PREFIX }}-frontend:latest,${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: 验证镜像可启动
+  # ──────────────────────────────────────────────────────────────
+  # Job 3: 部署到服务器（仅 main 分支 push 触发）
+  # ──────────────────────────────────────────────────────────────
+  deploy:
+    name: 部署到服务器
+    needs: build-images
+    runs-on: ubuntu-latest
+    # 仅 main 分支（PR 不部署）；且必须配了服务器 secrets 才跑
+    # 若 SERVER_HOST 未配，deploy 自动跳过（不会让 CI 变红），配好后下次 push 自动生效
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      vars.ENABLE_DEPLOY == 'true'
+    environment:
+      name: production # GitHub 环境，可在 settings 里配审批/限制
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 生成服务器用 docker-compose（覆盖镜像名为 GHCR）
         run: |
-          docker images web-wenxuan-frontend:ci
-          echo "✅ 前端镜像构建成功"
+          IMAGE_PREFIX=$(echo "${{ env.IMAGE_PREFIX }}" | tr '[:upper:]' '[:lower:]')
+          mkdir -p deploy/autogen
+          cat > deploy/autogen/docker-compose.cd.yml <<EOF
+          services:
+            backend:
+              image: ${IMAGE_PREFIX}-backend:latest
+              container_name: projectku-backend-prod
+              restart: unless-stopped
+              environment:
+                SPRING_PROFILES_ACTIVE: prod
+                SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/\${MYSQL_DATABASE:-web}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+                SPRING_DATASOURCE_USERNAME: root
+                SPRING_DATASOURCE_PASSWORD: \${MYSQL_ROOT_PASSWORD:-123456}
+              depends_on:
+                mysql:
+                  condition: service_healthy
+            frontend:
+              image: ${IMAGE_PREFIX}-frontend:latest
+              container_name: projectku-frontend-prod
+              restart: unless-stopped
+              ports:
+                - "80:80"
+              depends_on:
+                - backend
+          EOF
+
+      - name: 传输部署文件到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deploy/autogen/docker-compose.cd.yml"
+          target: ${{ secrets.DEPLOY_PATH }}
+          strip_components: 2
+
+      - name: SSH 登录服务器拉镜像并重启
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # 登录 GHCR 拉私有镜像（首次需配 ~/.docker/config.json）
+            echo "${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || echo "GHCR 登录跳过（可能是公开镜像或已登录）"
+
+            echo "📥 拉取最新镜像..."
+            docker pull $(echo "${{ env.IMAGE_PREFIX }}" | tr '[:upper:]' '[:lower:]')-backend:latest
+            docker pull $(echo "${{ env.IMAGE_PREFIX }}" | tr '[:upper:]' '[:lower:]')-frontend:latest
+
+            echo "🔄 重启服务..."
+            docker compose -f docker-compose.cd.yml up -d --remove-orphans
+
+            echo "🩺 健康检查..."
+            sleep 10
+            # 检查前端容器是否在运行
+            docker ps --filter "name=projectku-frontend-prod" --filter "status=running" --format "{{.Names}}" | grep -q projectku-frontend-prod && echo "✅ 前端已启动" || (echo "❌ 前端启动失败" && exit 1)
+            docker ps --filter "name=projectku-backend-prod" --filter "status=running" --format "{{.Names}}" | grep -q projectku-backend-prod && echo "✅ 后端已启动" || (echo "❌ 后端启动失败" && exit 1)
+
+            echo "🎉 部署完成"
+
+      - name: 部署失败时创建 Issue 告警
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 部署失败: ${context.sha.slice(0,7)}`,
+              body: `部署到生产服务器失败，请检查。\n\n提交: ${context.payload.head_commit.message}\n运行: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['deployment', 'bug']
+            })
