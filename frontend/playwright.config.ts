@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173'
+// Vite 默认仅绑定 localhost（IPv6），用 localhost 而非 127.0.0.1
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173'
 
 export default defineConfig({
   testDir: './tests',
@@ -28,9 +29,11 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests/.auth/user.json',
+        // 不强制注入 storageState：避免 setup 的登录态污染游客用例（如商品详情、首页）。
+        // 需要登录的用例通过 fixtures/helpers.ts 的 loginViaUi 显式登录，保证用例自给自足、互不干扰。
+        storageState: undefined,
       },
-      dependencies: ['setup'],
+      // 不依赖 setup：setup 仅作可选工具保留（如未来需要共享 storageState 再启用）
     },
   ],
 })
