@@ -66,6 +66,170 @@ const authHeaders = (token) => ({
   Token: token,
 })
 
+const normalizeCaseID = (id) => {
+  if (id === null || id === undefined) return null
+  const match = String(id).match(/(\d+)$/)
+  return match ? Number(match[1]) : null
+}
+
+const updateCookieJar = (headers, jar) => {
+  const raw = typeof headers.getSetCookie === 'function'
+    ? headers.getSetCookie().join(',')
+    : headers.get('set-cookie') || ''
+  const cookiePattern = /(?:^|,\s*)([A-Za-z][A-Za-z0-9_]*)=([^;,]*)/g
+  let match
+  while ((match = cookiePattern.exec(raw))) {
+    const [, name, value] = match
+    if (!['path', 'expires', 'max-age', 'domain', 'samesite'].includes(name.toLowerCase())) {
+      jar[name] = value
+    }
+  }
+}
+
+const cookieHeader = (jar) => Object.entries(jar).map(([name, value]) => `${name}=${value}`).join('; ')
+
+const requestText = async (url, options = {}, jar = null) => {
+  const headers = { ...(options.headers || {}) }
+  if (jar && Object.keys(jar).length) headers.Cookie = cookieHeader(jar)
+  const res = await fetch(url, { ...options, headers })
+  if (jar) updateCookieJar(res.headers, jar)
+  const text = await res.text()
+  return { res, text }
+}
+
+const loginSession = async (baseURL) => {
+  const jar = {}
+  await requestText(`${baseURL}/index.php?m=user&f=login`, {}, jar)
+
+  const form = new URLSearchParams()
+  form.set('account', process.env.ZENTAO_USERNAME)
+  form.set('password', process.env.ZENTAO_PASSWORD)
+  form.set('passwordStrength', '1')
+  form.set('referer', '/zentao/')
+  form.set('keepLogin', 'on')
+
+  const { text } = await requestText(
+    `${baseURL}/index.php?m=user&f=login`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: form.toString(),
+    },
+    jar,
+  )
+
+  if (!text.includes("self.location='/zentao/'") && !text.includes('self.location="/zentao/"')) {
+    throw new Error(`禅道传统接口登录失败: ${text.slice(0, 200)}`)
+  }
+
+  return jar
+}
+
+const parseTraditionalJson = (text, action) => {
+  try {
+    const json = JSON.parse(text)
+    if (json.result && json.result !== 'success') {
+      throw new Error(`${action}失败: ${json.message || text.slice(0, 200)}`)
+    }
+    return json
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(`${action}失败`)) throw error
+    throw new Error(`${action}响应解析失败: ${text.slice(0, 200)}`)
+  }
+}
+
+const createTesttask = async (baseURL, jar, productID, payload) => {
+  const form = new URLSearchParams()
+  const defaults = {
+    product: productID,
+    execution: process.env.ZENTAO_TESTTASK_EXECUTION || '3',
+    build: process.env.ZENTAO_TESTTASK_BUILD || '1',
+    'type[]': 'integrate',
+    owner: '',
+    'members[]': '',
+    begin: new Date().toISOString().slice(0, 10),
+    end: new Date().toISOString().slice(0, 10),
+    status: 'doing',
+    testreport: 0,
+    pri: 3,
+    desc: '',
+  }
+  Object.entries({ ...defaults, ...payload }).forEach(([key, value]) => form.set(key, String(value)))
+  form.set('uid', `ci-${Date.now()}`)
+
+  const { text } = await requestText(
+    `${baseURL}/index.php?m=testtask&f=create&product=${productID}&zin=1`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Referer: `/index.php?m=testtask&f=create&product=${productID}`,
+      },
+      body: form.toString(),
+    },
+    jar,
+  )
+
+  return parseTraditionalJson(text, '创建测试任务')
+}
+
+const linkCases = async (baseURL, jar, taskID, cases) => {
+  const form = new URLSearchParams()
+  cases.forEach(({ caseID, version }) => {
+    form.set(`case[${caseID}]`, String(caseID))
+    form.set(`version[${caseID}]`, String(version || 1))
+  })
+
+  const { text } = await requestText(
+    `${baseURL}/index.php?m=testtask&f=linkCase&taskID=${taskID}&type=all&param=myQueryID`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Referer: `/index.php?m=testtask&f=caseTasks&taskID=${taskID}`,
+      },
+      body: form.toString(),
+    },
+    jar,
+  )
+
+  return parseTraditionalJson(text, '关联测试用例')
+}
+
+const getTesttaskDetail = async (baseURL, token, taskID) => {
+  const { res, body, text } = await requestJson(`${baseURL}/api.php/v1/testtasks/${taskID}`, {
+    headers: authHeaders(token),
+  })
+  if (!res.ok) throw new Error(`获取测试任务详情失败 ${res.status}: ${text}`)
+  return body || {}
+}
+
+const runCase = async (baseURL, jar, { runID, caseID, version = 1, result, real }) => {
+  const form = new URLSearchParams()
+  form.set('result[0]', result)
+  form.set('real[0]', real)
+  form.set('case', String(caseID))
+  form.set('version', String(version || 1))
+
+  const { text } = await requestText(
+    `${baseURL}/index.php?m=testtask&f=runCase&id=${runID}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Referer: `/index.php?m=testtask&f=runCase&id=${runID}`,
+      },
+      body: form.toString(),
+    },
+    jar,
+  )
+
+  return parseTraditionalJson(text, '执行测试用例')
+}
+
 const listTestcases = async (baseURL, token, productID) => {
   const cases = []
   let page = 1
@@ -159,6 +323,9 @@ const writeOutputs = async (summary) => {
     `- 已存在用例：${summary.existing}`,
     `- 失败用例：${summary.failed}`,
     `- 新建 Bug：${summary.bugsCreated}`,
+    `- 测试任务：${summary.testtask.id ? `#${summary.testtask.id}` : summary.testtask.status}`,
+    `- 关联用例：${summary.testtask.linked}`,
+    `- 执行记录：pass ${summary.testtask.pass} / fail ${summary.testtask.fail} / blocked ${summary.testtask.blocked}`,
     `- 后端测试：${summary.execution.backend}`,
     `- 前端 Allure：${summary.execution.frontend}`,
     `- Allure 报告：${summary.execution.allureReportUrl || '未生成'}`,
@@ -172,7 +339,10 @@ const writeOutputs = async (summary) => {
   await fs.writeFile(summaryMarkdownPath, `${lines.join('\n')}\n`, 'utf8')
 
   if (process.env.GITHUB_OUTPUT) {
-    const text = `状态=${summary.status}，新建=${summary.created}，已存在=${summary.existing}，失败=${summary.failed}，Bug=${summary.bugsCreated}`
+    const taskText = summary.testtask.id
+      ? `，TestTask=#${summary.testtask.id}，执行=pass ${summary.testtask.pass}/fail ${summary.testtask.fail}/blocked ${summary.testtask.blocked}`
+      : `，TestTask=${summary.testtask.status}`
+    const text = `状态=${summary.status}，新建=${summary.created}，已存在=${summary.existing}，失败=${summary.failed}，Bug=${summary.bugsCreated}${taskText}`
     await fs.appendFile(
       process.env.GITHUB_OUTPUT,
       [
@@ -181,6 +351,8 @@ const writeOutputs = async (summary) => {
         `existing_count=${summary.existing}`,
         `failed_count=${summary.failed}`,
         `bug_count=${summary.bugsCreated}`,
+        `testtask_id=${summary.testtask.id || ''}`,
+        `testtask_status=${summary.testtask.status}`,
         `summary_text=${text}`,
       ].join('\n') + '\n',
       'utf8'
@@ -198,6 +370,16 @@ const buildBaseSummary = (manifest, status) => ({
   existing: 0,
   failed: 0,
   bugsCreated: 0,
+  syncedCases: [],
+  testtask: {
+    status: 'pending',
+    id: null,
+    linked: 0,
+    executed: 0,
+    pass: 0,
+    fail: 0,
+    blocked: 0,
+  },
   errors: [],
   execution: {
     backend: compactStatus(process.env.BACKEND_RESULT),
@@ -243,6 +425,105 @@ const buildFailureBug = (summary) => {
   }
 }
 
+const resultForTarget = (summary, target = 'ci') => {
+  const values = target === 'backend'
+    ? [summary.execution.backend]
+    : target === 'frontend'
+      ? [summary.execution.frontend]
+      : [summary.execution.backend, summary.execution.frontend]
+
+  if (values.some((value) => value === 'failed')) return 'fail'
+  if (values.some((value) => value === 'skipped')) return 'blocked'
+  if (values.every((value) => value === 'success')) return 'pass'
+  return 'blocked'
+}
+
+const realResultForCase = (summary, testCase, result) => {
+  const target = testCase.ciTarget || 'ci'
+  const statusText = `backend=${summary.execution.backend}, frontend=${summary.execution.frontend}`
+  const links = [
+    summary.execution.runUrl ? `GitHub Actions: ${summary.execution.runUrl}` : '',
+    summary.execution.allureReportUrl ? `Allure: ${summary.execution.allureReportUrl}` : '',
+  ].filter(Boolean).join('\n')
+
+  if (result === 'pass') return `[CI自动执行] ${target} 验证通过。\n${statusText}\n${links}`
+  if (result === 'fail') return `[CI自动执行] ${target} 验证失败，请查看 CI 日志和 Allure 报告。\n${statusText}\n${links}`
+  return `[CI自动执行] ${target} 未执行或被跳过。\n${statusText}\n${links}`
+}
+
+const createAndRunTesttask = async ({ baseURL, token, productID, summary }) => {
+  if (process.env.ZENTAO_CREATE_TESTTASK === 'false') {
+    summary.testtask.status = 'disabled'
+    return
+  }
+
+  if (!summary.syncedCases.length) {
+    summary.testtask.status = 'no_cases'
+    return
+  }
+
+  const jar = await loginSession(baseURL)
+  const shortSha = summary.execution.sha ? summary.execution.sha.slice(0, 7) : 'unknown'
+  const taskName = `[CI] 元气购 #${summary.execution.runNumber || 'manual'} ${shortSha}`
+  const task = await createTesttask(baseURL, jar, productID, {
+    name: taskName,
+    desc: [
+      '<p>GitHub Actions 自动创建测试任务。</p>',
+      `<p>运行详情：<a href="${summary.execution.runUrl}">${summary.execution.runUrl}</a></p>`,
+      `<p>Allure 报告：<a href="${summary.execution.allureReportUrl}">${summary.execution.allureReportUrl}</a></p>`,
+    ].join('\n'),
+  })
+
+  summary.testtask.id = task.id
+  summary.testtask.status = 'created'
+
+  const linkableCases = summary.syncedCases
+    .map((item) => ({ ...item, caseID: normalizeCaseID(item.caseID) }))
+    .filter((item) => item.caseID)
+
+  if (!linkableCases.length) {
+    summary.testtask.status = 'created_no_linkable_cases'
+    return
+  }
+
+  await linkCases(baseURL, jar, task.id, linkableCases)
+  summary.testtask.linked = linkableCases.length
+
+  const detail = await getTesttaskDetail(baseURL, token, task.id)
+  const runs = Array.isArray(detail.testcases) ? detail.testcases : []
+  const runByCaseID = new Map(
+    runs
+      .map((item) => [String(normalizeCaseID(item.case)), item])
+      .filter(([caseID]) => caseID && caseID !== 'null'),
+  )
+
+  for (const item of linkableCases) {
+    const runRec = runByCaseID.get(String(item.caseID))
+    const runID = normalizeCaseID(runRec?.id)
+    if (!runID) {
+      summary.testtask.blocked += 1
+      summary.errors.push({
+        title: item.title,
+        error: `未找到测试任务关联运行记录 runID，caseID=${item.caseID}`,
+      })
+      continue
+    }
+
+    const result = resultForTarget(summary, item.ciTarget)
+    await runCase(baseURL, jar, {
+      runID,
+      caseID: item.caseID,
+      version: item.version || runRec.caseVersion || 1,
+      result,
+      real: realResultForCase(summary, item, result),
+    })
+    summary.testtask.executed += 1
+    summary.testtask[result] += 1
+  }
+
+  summary.testtask.status = 'executed'
+}
+
 const main = async () => {
   const manifest = await readJson(caseFile)
   if (!Array.isArray(manifest.cases) || manifest.cases.length === 0) {
@@ -252,6 +533,7 @@ const main = async () => {
   const missing = requiredEnv.filter((name) => !process.env[name])
   if (missing.length) {
     const summary = buildBaseSummary(manifest, 'skipped')
+    summary.testtask.status = 'skipped'
     summary.errors.push({
       title: '禅道配置缺失',
       error: `缺少环境变量：${missing.join(', ')}。已跳过禅道同步。`,
@@ -268,18 +550,33 @@ const main = async () => {
 
   const token = await login(baseURL)
   const existingCases = await listTestcases(baseURL, token, productID)
-  const existingTitles = new Set(existingCases.map((item) => item.title).filter(Boolean))
+  const existingByTitle = new Map(existingCases.filter((item) => item.title).map((item) => [item.title, item]))
 
   for (const testCase of manifest.cases) {
-    if (existingTitles.has(testCase.title)) {
+    const existing = existingByTitle.get(testCase.title)
+    if (existing) {
       summary.existing += 1
+      summary.syncedCases.push({
+        title: testCase.title,
+        ciTarget: testCase.ciTarget || 'ci',
+        caseID: normalizeCaseID(existing.id),
+        version: existing.version || existing.caseVersion || 1,
+      })
       continue
     }
 
     try {
       const created = await createTestcase(baseURL, token, productID, testCase)
       summary.created += 1
-      if (created?.id) existingTitles.add(testCase.title)
+      if (created?.id) {
+        existingByTitle.set(testCase.title, created)
+        summary.syncedCases.push({
+          title: testCase.title,
+          ciTarget: testCase.ciTarget || 'ci',
+          caseID: normalizeCaseID(created.id),
+          version: created.version || created.caseVersion || 1,
+        })
+      }
     } catch (error) {
       summary.failed += 1
       summary.errors.push({
@@ -287,6 +584,16 @@ const main = async () => {
         error: error instanceof Error ? error.message : String(error),
       })
     }
+  }
+
+  try {
+    await createAndRunTesttask({ baseURL, token, productID, summary })
+  } catch (error) {
+    summary.testtask.status = 'failed'
+    summary.errors.push({
+      title: '创建/执行禅道测试任务',
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 
   if (shouldCreateFailureBug(summary)) {
@@ -318,6 +625,16 @@ main().catch(async (error) => {
     existing: 0,
     failed: 1,
     bugsCreated: 0,
+    syncedCases: [],
+    testtask: {
+      status: 'failed',
+      id: null,
+      linked: 0,
+      executed: 0,
+      pass: 0,
+      fail: 0,
+      blocked: 0,
+    },
     errors: [{ title: '脚本执行失败', error: error instanceof Error ? error.message : String(error) }],
     execution: {
       backend: compactStatus(process.env.BACKEND_RESULT),

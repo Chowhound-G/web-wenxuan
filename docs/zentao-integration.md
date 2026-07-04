@@ -7,10 +7,11 @@
 1. `qa/zentao/testcases.json` 维护产品级测试用例。
 2. CI 执行后端 Maven 测试和前端 Playwright smoke 测试。
 3. `qa/zentao/sync-testcases-and-report.mjs` 登录禅道，按标题去重后创建缺失用例。
-4. 如果后端或前端自动化失败，脚本会自动创建一条禅道 Bug，附 GitHub Actions 和 Allure 排查入口。
-5. CI 上传 `zentao-test-management` artifact，飞书消息展示同步结果和报告入口。
+4. 脚本通过禅道传统接口创建 testtask，关联测试用例，并按 CI 阶段结果写入执行记录。
+5. 如果后端或前端自动化失败，脚本会自动创建一条禅道 Bug，附 GitHub Actions 和 Allure 排查入口。
+6. CI 上传 `zentao-test-management` artifact，飞书消息展示同步结果和报告入口。
 
-当前只做“用例创建/同步”、“CI 失败自动提 Bug”和“CI 执行汇总”。禅道 testtask 执行记录暂不写入，因为参考项目 `Chowhound-G/zentao-api-automation` 里也说明 testtask 依赖 build 权限，暂未实现稳定接口。
+testtask 走禅道传统表单接口，原因是当前禅道 REST testtask 接口不完整。实现参考 `Chowhound-G/zentao-api-automation` 里的 `testtask-api.spec.js`。
 
 ## GitHub Secrets
 
@@ -27,6 +28,9 @@ ZENTAO_PASSWORD  禅道密码
 ```text
 ZENTAO_PRODUCT_ID  禅道产品 ID；不配置时从 ZENTAO_URL 的 referer 解析，解析失败默认 1
 ZENTAO_CREATE_BUG_ON_FAILURE  是否在测试失败时自动创建 Bug；默认 true，设为 false 可关闭
+ZENTAO_CREATE_TESTTASK  是否创建测试任务并写执行记录；默认 true，设为 false 可关闭
+ZENTAO_TESTTASK_EXECUTION  禅道执行 ID；默认 3
+ZENTAO_TESTTASK_BUILD  禅道版本 build ID；默认 1
 ```
 
 如果 `ZENTAO_URL` 填完整登录页，例如：
@@ -66,4 +70,18 @@ node qa/zentao/sync-testcases-and-report.mjs
 ```text
 qa/zentao/out/zentao-summary.json
 qa/zentao/out/zentao-summary.md
+```
+
+## Allure 历史报告
+
+部署成功后，CI 会把本次 Allure HTML 报告发布到：
+
+```text
+http://019f2bb81c537b9083731be895602f96.ap-northeast-1.a8g1v3.xyz/__reports/allure/<run_number>/
+```
+
+同时生成历史索引页，保留最近 20 次：
+
+```text
+http://019f2bb81c537b9083731be895602f96.ap-northeast-1.a8g1v3.xyz/__reports/allure/
 ```

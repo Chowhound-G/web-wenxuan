@@ -24,6 +24,9 @@
 #   ZENTAO_PASSWORD    禅道密码（可选）
 #   ZENTAO_PRODUCT_ID  禅道产品 ID（可选，配置为 GitHub Variable）
 #   ZENTAO_CREATE_BUG_ON_FAILURE 测试失败时自动创建 Bug（可选 Variable，默认 true）
+#   ZENTAO_CREATE_TESTTASK 创建测试任务并写入执行结果（可选 Variable，默认 true）
+#   ZENTAO_TESTTASK_EXECUTION 禅道执行 ID（可选 Variable，默认 3）
+#   ZENTAO_TESTTASK_BUILD     禅道版本 build ID（可选 Variable，默认 1）
 
 name: CI/CD
 
@@ -197,9 +200,12 @@ jobs:
           ZENTAO_PASSWORD: ${{ secrets.ZENTAO_PASSWORD }}
           ZENTAO_PRODUCT_ID: ${{ vars.ZENTAO_PRODUCT_ID }}
           ZENTAO_CREATE_BUG_ON_FAILURE: ${{ vars.ZENTAO_CREATE_BUG_ON_FAILURE }}
+          ZENTAO_CREATE_TESTTASK: ${{ vars.ZENTAO_CREATE_TESTTASK }}
+          ZENTAO_TESTTASK_EXECUTION: ${{ vars.ZENTAO_TESTTASK_EXECUTION }}
+          ZENTAO_TESTTASK_BUILD: ${{ vars.ZENTAO_TESTTASK_BUILD }}
           BACKEND_RESULT: ${{ needs.backend-test.result }}
           FRONTEND_TEST_RESULT: ${{ needs.frontend-smoke-tests.result }}
-          ALLURE_REPORT_URL: ${{ needs.frontend-smoke-tests.outputs.allure_report_url }}
+          ALLURE_REPORT_URL: ${{ env.SITE_URL }}/__reports/allure/${{ github.run_number }}/
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
           GITHUB_SHA: ${{ github.sha }}
@@ -367,6 +373,20 @@ jobs:
             COMPOSE_FILE=${{ secrets.COMPOSE_FILE }}
             REPORT_ROOT="${{ secrets.DEPLOY_PATH }}/ci-reports/allure"
             find "$REPORT_ROOT" -mindepth 1 -maxdepth 1 -type d | sort -V | head -n -20 | xargs -r rm -rf
+            INDEX="$REPORT_ROOT/index.html"
+            {
+              printf '%s\n' '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>元气购 Allure 报告</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f6f8fb;color:#111827}.wrap{max-width:980px;margin:0 auto;padding:40px 20px}h1{font-size:28px;margin:0 0 8px}.muted{color:#64748b;margin:0 0 24px}table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}th,td{padding:14px 16px;border-bottom:1px solid #eef2f7;text-align:left}th{background:#f8fafc;font-size:13px;color:#475569}a{color:#2563eb;text-decoration:none}.tag{display:inline-flex;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:3px 9px;font-size:12px}</style></head><body><main class="wrap"><h1>元气购 Allure 报告</h1><p class="muted">按 GitHub Actions run number 保留最近 20 次报告。</p><table><thead><tr><th>Run</th><th>报告</th><th>更新时间</th></tr></thead><tbody>'
+              for dir in $(find "$REPORT_ROOT" -mindepth 1 -maxdepth 1 -type d | sort -Vr); do
+                run=$(basename "$dir")
+                updated=$(date -r "$dir" '+%Y-%m-%d %H:%M:%S %z' 2>/dev/null || date '+%Y-%m-%d %H:%M:%S %z')
+                printf '<tr><td><span class="tag">#%s</span></td><td><a href="./%s/">查看 Allure 报告</a></td><td>%s</td></tr>\n' "$run" "$run" "$updated"
+              done
+              printf '%s\n' '</tbody></table></main></body></html>'
+            } > "$INDEX"
+            latest=$(find "$REPORT_ROOT" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1 | xargs -r basename)
+            if [ -n "$latest" ]; then
+              printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=./%s/"><a href="./%s/">Latest Allure Report</a>' "$latest" "$latest" > "$REPORT_ROOT/latest.html"
+            fi
             FRONTEND_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q frontend)
             [ -n "$FRONTEND_CONTAINER" ] || { echo "frontend container not found"; exit 1; }
             docker exec "$FRONTEND_CONTAINER" mkdir -p /usr/share/nginx/html/__reports/allure
@@ -426,6 +446,7 @@ jobs:
           SHA: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.event.pull_request.title || 'manual run' }}
           SITE_URL: ${{ env.SITE_URL }}
+          ALLURE_HISTORY_URL: ${{ env.SITE_URL }}/__reports/allure/
         run: |
           python - <<'PY'
           import base64
@@ -469,6 +490,7 @@ jobs:
           if not deploy_expected and deploy == "skipped":
               deploy_line = "部署到服务器：skipped（当前触发条件不部署）"
           allure_report_url = os.getenv("ALLURE_REPORT_URL", "").strip() or f"{run_url}#artifacts"
+          allure_history_url = os.getenv("ALLURE_HISTORY_URL", "").strip()
 
           text = "\n".join([
               f"[{status_icon}] {title}",
@@ -485,6 +507,7 @@ jobs:
               deploy_line,
               "",
               f"Allure 报告：{allure_report_url}",
+              f"Allure 历史：{allure_history_url}",
               f"禅道同步报告：{os.getenv('ZENTAO_REPORT_URL', '').strip() or run_url + '#artifacts'}",
               f"运行详情：{run_url}",
               f"线上地址：{os.getenv('SITE_URL')}",
