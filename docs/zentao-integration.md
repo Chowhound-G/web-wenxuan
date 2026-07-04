@@ -9,7 +9,13 @@
 3. `qa/zentao/sync-testcases-and-report.mjs` 登录禅道，按标题去重后创建缺失用例。
 4. 脚本通过禅道传统接口创建 testtask，关联测试用例，并按 CI 阶段结果写入执行记录。
 5. 如果后端或前端自动化失败，脚本会自动创建一条禅道 Bug，附 GitHub Actions 和 Allure 排查入口。
-6. CI 上传 `zentao-test-management` artifact，飞书消息展示同步结果和报告入口。
+6. 部署成功后执行生产环境只读 Smoke，用于确认线上首页和商品详情可访问。
+7. CI 上传 `zentao-test-management` artifact，飞书消息展示同步结果和报告入口。
+
+测试分层：
+
+- 部署前：后端单元测试、前端 Playwright + Allure，用于拦截明显回归。
+- 部署后：生产 Smoke，只验证线上只读关键路径，不做下单等写数据操作。
 
 testtask 走禅道传统表单接口，原因是当前禅道 REST testtask 接口不完整。实现参考 `Chowhound-G/zentao-api-automation` 里的 `testtask-api.spec.js`。
 

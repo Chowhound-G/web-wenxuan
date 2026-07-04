@@ -611,7 +611,7 @@ const main = async () => {
   if (summary.failed > 0 || summary.errors.length > 0) summary.status = 'failed'
   await writeOutputs(summary)
 
-  if (summary.failed > 0) process.exitCode = 1
+  if (summary.status === 'failed') process.exitCode = 1
 }
 
 main().catch(async (error) => {

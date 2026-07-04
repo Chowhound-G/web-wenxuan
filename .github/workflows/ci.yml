@@ -7,7 +7,8 @@
 #   3. zentao-test-management — 同步禅道测试用例 + 汇总执行情况（配置禅道密钥后启用）
 #   4. build-images    — 构建前后端 Docker 镜像并推送 GHCR（依赖测试通过）
 #   5. deploy          — SSH 部署到服务器（仅 push main 触发，依赖镜像构建）
-#   6. notify-feishu   — 汇总 CI/CD 结果并发送飞书通知（配置 Webhook 后启用）
+#   6. production-smoke-tests — 部署后线上只读 Smoke 验收
+#   7. notify-feishu   — 汇总 CI/CD 结果并发送飞书通知（配置 Webhook 后启用）
 #
 # 镜像仓库：GHCR (ghcr.io)，与 GitHub 原生集成，免费
 # 部署方式：SSH 到服务器执行 docker pull + docker-compose up -d
@@ -412,12 +413,56 @@ jobs:
             })
 
   # ──────────────────────────────────────────────────────────────
-  # Job 6: 飞书通知（可选）
+  # Job 6: 部署后生产 Smoke（仅部署成功后运行）
+  # ──────────────────────────────────────────────────────────────
+  production-smoke-tests:
+    name: 部署后生产 Smoke
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: needs.deploy.result == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+
+      - name: 安装 Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: 执行生产 Smoke
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ env.SITE_URL }}
+        run: npm run test:e2e:production
+
+      - name: 上传生产 Smoke 报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 7: 飞书通知（可选）
   # 配置 GitHub Secrets: FEISHU_BOT_WEBHOOK, FEISHU_BOT_SECRET(可选)
   # ──────────────────────────────────────────────────────────────
   notify-feishu:
     name: 飞书通知
-    needs: [backend-test, frontend-smoke-tests, zentao-test-management, build-images, deploy]
+    needs: [backend-test, frontend-smoke-tests, zentao-test-management, build-images, deploy, production-smoke-tests]
     runs-on: ubuntu-latest
     if: always()
 
@@ -433,6 +478,7 @@ jobs:
           ZENTAO_REPORT_URL: ${{ needs.zentao-test-management.outputs.report_url }}
           BUILD_RESULT: ${{ needs.build-images.result }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
+          PRODUCTION_SMOKE_RESULT: ${{ needs.production-smoke-tests.result }}
           ALLURE_REPORT_URL: ${{ needs.deploy.outputs.allure_public_url || needs.frontend-smoke-tests.outputs.allure_report_url }}
           ENABLE_DEPLOY: ${{ vars.ENABLE_DEPLOY }}
           REPOSITORY: ${{ github.repository }}
@@ -468,6 +514,7 @@ jobs:
           frontend = os.getenv("FRONTEND_TEST_RESULT", "unknown")
           build = os.getenv("BUILD_RESULT", "unknown")
           deploy = os.getenv("DEPLOY_RESULT", "unknown")
+          production_smoke = os.getenv("PRODUCTION_SMOKE_RESULT", "unknown")
           zentao = os.getenv("ZENTAO_RESULT", "unknown")
           enable_deploy = os.getenv("ENABLE_DEPLOY", "").lower() == "true"
           event_name = os.getenv("EVENT_NAME", "")
@@ -476,6 +523,7 @@ jobs:
 
           ok = backend == "success" and frontend == "success" and zentao == "success" and build == "success"
           ok = ok and (deploy == "success" if deploy_expected else deploy in ("success", "skipped"))
+          ok = ok and (production_smoke == "success" if deploy_expected else production_smoke in ("success", "skipped"))
 
           run_url = f"{os.getenv('SERVER_URL')}/{os.getenv('REPOSITORY')}/actions/runs/{os.getenv('RUN_ID')}"
           short_sha = os.getenv("SHA", "")[:7]
@@ -505,6 +553,7 @@ jobs:
               f"禅道用例同步：{zentao} {os.getenv('ZENTAO_SUMMARY', '').strip()}",
               f"构建并推送镜像：{build}",
               deploy_line,
+              f"部署后生产 Smoke：{production_smoke}",
               "",
               f"Allure 报告：{allure_report_url}",
               f"Allure 历史：{allure_history_url}",

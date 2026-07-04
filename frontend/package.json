@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:allure": "playwright test tests/specs/responsive-allure.spec.ts --project=chromium",
+    "test:e2e:production": "playwright test tests/specs/production-smoke.spec.ts --project=chromium",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install chromium"
   },
