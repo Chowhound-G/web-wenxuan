@@ -50,6 +50,19 @@ const reviewsStore = useReviewsStore()
 
 const isFav = computed(() => favorites.isFavorite(id.value))
 
+/**
+ * 安全返回：避免回到触发 401 的页面（如登录页）形成死循环。
+ * - 历史栈 ≤1（直接进详情页，如外链/刷新）→ 回首页
+ * - 否则 router.back()，让用户回到来源页
+ */
+const goBack = () => {
+  if (window.history.length <= 1) {
+    router.push({ name: 'home' })
+  } else {
+    router.back()
+  }
+}
+
 const toggleFavorite = async () => {
   if (!auth.user) {
     toast.push({ type: 'error', message: '请先登录' })
@@ -391,7 +404,7 @@ onMounted(() => {
   <div class="page">
     <header class="headerSticky">
       <div class="headerContent">
-        <button class="backBtn" type="button" aria-label="返回" @click="router.back()">
+        <button class="backBtn" type="button" aria-label="返回" @click="goBack()">
           <img class="backIcon" :src="backIconUrl" alt="" aria-hidden="true" />
           <span class="backText">返回</span>
         </button>
