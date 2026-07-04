@@ -127,96 +127,56 @@ jobs:
 
   # ──────────────────────────────────────────────────────────────
   # Job 3: 部署到服务器（仅 main 分支 push 触发）
+  # 策略：compose 文件常驻服务器，CD 只做"拉镜像 + 重启"，更稳
+  # 需 GitHub Secrets: SERVER_HOST, SERVER_PORT, SERVER_USER, SSH_PRIVATE_KEY, DEPLOY_PATH, COMPOSE_FILE
+  # 需 GitHub Variable: ENABLE_DEPLOY=true 启用部署
   # ──────────────────────────────────────────────────────────────
   deploy:
     name: 部署到服务器
     needs: build-images
     runs-on: ubuntu-latest
-    # 仅 main 分支（PR 不部署）；且必须配了服务器 secrets 才跑
-    # 若 SERVER_HOST 未配，deploy 自动跳过（不会让 CI 变红），配好后下次 push 自动生效
+    # 仅 main 分支 push + 启用开关才部署；否则跳过（CI 保持绿色）
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
       vars.ENABLE_DEPLOY == 'true'
     environment:
-      name: production # GitHub 环境，可在 settings 里配审批/限制
+      name: production
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: 生成服务器用 docker-compose（覆盖镜像名为 GHCR）
-        env:
-          OWNER_LC: ${{ github.repository_owner }}
-        run: |
-          OWNER_LC=$(echo "$OWNER_LC" | tr '[:upper:]' '[:lower:]')
-          IMAGE_PREFIX="ghcr.io/${OWNER_LC}/web-wenxuan"
-          mkdir -p deploy/autogen
-          cat > deploy/autogen/docker-compose.cd.yml <<EOF
-          services:
-            backend:
-              image: ${IMAGE_PREFIX}-backend:latest
-              container_name: projectku-backend-prod
-              restart: unless-stopped
-              environment:
-                SPRING_PROFILES_ACTIVE: prod
-                SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/\${MYSQL_DATABASE:-web}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-                SPRING_DATASOURCE_USERNAME: root
-                SPRING_DATASOURCE_PASSWORD: \${MYSQL_ROOT_PASSWORD:-123456}
-              depends_on:
-                mysql:
-                  condition: service_healthy
-            frontend:
-              image: ${IMAGE_PREFIX}-frontend:latest
-              container_name: projectku-frontend-prod
-              restart: unless-stopped
-              ports:
-                - "80:80"
-              depends_on:
-                - backend
-          EOF
-
-      - name: 传输部署文件到服务器
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "deploy/autogen/docker-compose.cd.yml"
-          target: ${{ secrets.DEPLOY_PATH }}
-          strip_components: 2
-
-      - name: SSH 登录服务器拉镜像并重启
+      - name: SSH 拉镜像并重启服务
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          OWNER_LC: ${{ github.repository_owner }}
         with:
           host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: OWNER_LC
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
-            OWNER_LC=$(echo "$OWNER_LC" | tr '[:upper:]' '[:lower:]')
-            IMAGE_PREFIX="ghcr.io/${OWNER_LC}/web-wenxuan"
+            COMPOSE_FILE=${{ secrets.COMPOSE_FILE }}
 
-            # 登录 GHCR 拉私有镜像（首次需配 ~/.docker/config.json）
-            echo "${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || echo "GHCR 登录跳过（可能是公开镜像或已登录）"
+            echo "📥 拉取最新镜像（--pull always）..."
+            docker compose -f $COMPOSE_FILE pull backend frontend
 
-            echo "📥 拉取最新镜像..."
-            docker pull ${IMAGE_PREFIX}-backend:latest
-            docker pull ${IMAGE_PREFIX}-frontend:latest
-
-            echo "🔄 重启服务..."
-            docker compose -f docker-compose.cd.yml up -d --remove-orphans
+            echo "🔄 重启 backend + frontend（mysql 不动，保数据）..."
+            docker compose -f $COMPOSE_FILE up -d --no-deps backend frontend
 
             echo "🩺 健康检查..."
-            sleep 10
-            # 检查前端容器是否在运行
-            docker ps --filter "name=projectku-frontend-prod" --filter "status=running" --format "{{.Names}}" | grep -q projectku-frontend-prod && echo "✅ 前端已启动" || (echo "❌ 前端启动失败" && exit 1)
-            docker ps --filter "name=projectku-backend-prod" --filter "status=running" --format "{{.Names}}" | grep -q projectku-backend-prod && echo "✅ 后端已启动" || (echo "❌ 后端启动失败" && exit 1)
+            sleep 15
+            for i in 1 2 3 4 5 6; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/v1/products?page=1\&size=1 2>/dev/null || echo 000)
+              if [ "$code" = "200" ]; then
+                echo "✅ 后端就绪 (HTTP $code)"
+                break
+              fi
+              echo "等待后端启动... HTTP $code"
+              [ $i -eq 6 ] && { echo "❌ 后端 90s 内未就绪"; exit 1; }
+              sleep 15
+            done
 
-            echo "🎉 部署完成"
+            curl -s -o /dev/null -w '前端 HTTP %{http_code}\n' http://localhost/
+            echo "🎉 部署完成: $(date)"
 
       - name: 部署失败时创建 Issue 告警
         if: failure()
