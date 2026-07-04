@@ -201,10 +201,11 @@ onMounted(() => {
 
 .card {
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   background: var(--bg);
   overflow: hidden;
   display: grid;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
 .cardBtn {
@@ -249,7 +250,7 @@ onMounted(() => {
 }
 
 .price {
-  color: var(--text-h);
+  color: #b45309;
   font-weight: 900;
 }
 
@@ -278,25 +279,48 @@ onMounted(() => {
 }
 
 .actions {
-  padding: 10px 12px 12px;
+  padding: 8px 10px 10px;
   border-top: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.actions :deep(.btn.sm) {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
 }
 
 @media (min-width: 920px) {
   .page {
-    max-width: 1120px;
+    width: min(1180px, calc(100% - 48px));
+    max-width: none;
     margin: 0 auto;
+    padding: 18px 0 42px;
+    gap: 16px;
+  }
+
+  .searchRow {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: var(--bg);
+    padding: 14px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  }
+
+  .sort {
+    display: flex;
+    justify-content: flex-end;
   }
 
   .grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .cover {
-    height: 170px;
+    height: 178px;
   }
 }
 </style>

@@ -170,19 +170,6 @@ onMounted(() => {
         />
         <button class="searchBtn" type="submit">搜索</button>
       </form>
-      <div class="right">
-        <button class="msgBtn" type="button" aria-label="消息中心" @click="router.push({ name: 'messages' })">
-          消息
-        </button>
-        <button
-          class="authBtn"
-          type="button"
-          :aria-label="auth.isLoggedIn ? '退出登录' : '登录'"
-          @click="onAuthClick"
-        >
-          {{ authText }}
-        </button>
-      </div>
     </header>
 
     <main class="content" aria-live="polite">
@@ -873,9 +860,8 @@ onMounted(() => {
   margin: 12px auto 0;
   padding: 10px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   background: var(--bg);
@@ -895,15 +881,15 @@ onMounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  border: 2px solid color-mix(in srgb, var(--commerce-warm) 60%, var(--border) 40%);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border) 68%);
   border-radius: var(--radius-xs);
-  padding: 0 4px 0 12px;
-  background: var(--bg);
+  padding: 0 5px 0 12px;
+  background: color-mix(in srgb, var(--code-bg) 56%, var(--bg) 44%);
 }
 
 .search:focus-within {
-  border-color: var(--commerce-warm);
-  box-shadow: 0 0 0 3px var(--commerce-warm-bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
 .searchInput {
@@ -924,8 +910,8 @@ onMounted(() => {
   padding: 0 14px;
   font-size: 13px;
   font-weight: 800;
-  color: #111827;
-  background: var(--commerce-warm);
+  color: #fff;
+  background: var(--accent);
   cursor: pointer;
 }
 
@@ -1318,19 +1304,21 @@ onMounted(() => {
 }
 
 .actions {
-  padding: 9px 10px 10px;
+  padding: 8px 10px 10px;
   border-top: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
 
 .actionBtn {
   border: 1px solid var(--border);
-  padding: 8px 10px;
+  min-height: 30px;
+  padding: 5px 10px;
   background: var(--bg);
   color: var(--text-h);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .actionBtn:first-child {
@@ -1414,7 +1402,6 @@ onMounted(() => {
     width: min(1180px, calc(100% - 48px));
     margin-top: 18px;
     padding: 12px;
-    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .search {

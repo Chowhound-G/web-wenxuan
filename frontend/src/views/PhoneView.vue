@@ -426,7 +426,7 @@ onMounted(() => {
 }
 
 .price {
-  color: var(--text-h);
+  color: #b45309;
   font-weight: 900;
 }
 
@@ -645,17 +645,60 @@ onMounted(() => {
 }
 
 @media (min-width: 920px) {
+  .page {
+    width: min(1180px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 18px 0 42px;
+    gap: 16px;
+  }
+
+  .bar,
+  .searchRow {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    background: var(--bg);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  }
+
+  .bar {
+    padding: 14px 16px;
+  }
+
+  .searchRow {
+    padding: 14px;
+  }
+
   .content {
-    max-width: 1120px;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .content {
     margin: 0 auto;
   }
 
   .grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .card,
+  .skeleton,
+  .panel {
+    border-radius: var(--radius-xs);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   }
 
   .cover {
-    height: 170px;
+    height: 178px;
+  }
+
+  .cartBtn {
+    min-height: 30px;
+    border-radius: var(--radius-xs);
+    padding: 5px 10px;
+    font-weight: 800;
   }
 }
 </style>

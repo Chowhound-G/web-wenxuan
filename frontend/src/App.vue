@@ -12,6 +12,17 @@ const auth = useAuthStore()
 const favorites = useFavoritesStore()
 
 const showNav = computed(() => route.meta?.hideNav !== true)
+const authText = computed(() => (auth.isLoggedIn ? '退出' : '登录'))
+
+const onAuthClick = () => {
+  if (!auth.isLoggedIn) {
+    window.location.href = `/login?redirect=${encodeURIComponent(route.fullPath)}`
+    return
+  }
+
+  const ok = window.confirm('确认退出登录？')
+  if (ok) auth.logout()
+}
 
 onMounted(() => {
   if (auth.isLoggedIn) {
@@ -34,6 +45,10 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
       <div class="brandInner">
         <RouterLink class="brand" to="/" aria-label="元气购首页">元气购</RouterLink>
         <BottomNav v-if="showNav" />
+        <div v-if="showNav" class="topActions" aria-label="顶部快捷入口">
+          <RouterLink class="topAction" to="/messages">消息</RouterLink>
+          <button class="topAction primary" type="button" @click="onAuthClick">{{ authText }}</button>
+        </div>
       </div>
     </header>
     <RouterView class="view" />
@@ -66,8 +81,8 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 12px 0 16px;
+  gap: 8px;
+  padding: 0 8px 0 12px;
 }
 
 .brand {
@@ -78,6 +93,38 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
   font-size: 16px;
   line-height: 1;
   text-decoration: none;
+}
+
+.brandInner :deep(.nav) {
+  flex: 1 1 auto;
+}
+
+.topActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topAction {
+  min-width: 42px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 0 10px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 12px;
+  line-height: 30px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.topAction.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .view {
@@ -103,6 +150,17 @@ watch(() => auth.isLoggedIn, (loggedIn) => {
 
   .brand {
     font-size: 20px;
+  }
+
+  .topActions {
+    gap: 8px;
+  }
+
+  .topAction {
+    min-width: 58px;
+    height: 36px;
+    font-size: 13px;
+    line-height: 34px;
   }
 }
 </style>

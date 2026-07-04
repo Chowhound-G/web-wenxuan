@@ -205,9 +205,9 @@ const dec = (itemId: string, current: number) => {
 
 @media (min-width: 1024px) {
   .page {
-    width: min(1180px, 100%);
+    width: min(1180px, calc(100% - 48px));
     margin: 0 auto;
-    padding: 32px 32px 48px;
+    padding: 28px 0 48px;
   }
 
   .title {
@@ -216,16 +216,17 @@ const dec = (itemId: string, current: number) => {
   }
 
   .list {
-    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-columns: minmax(0, 1fr) 320px;
     align-items: start;
-    gap: 18px;
+    gap: 16px;
   }
 
   .item {
     grid-column: 1;
     grid-template-columns: 128px minmax(0, 1fr);
     gap: 18px;
-    border-radius: 12px;
+    border-radius: var(--radius-xs);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   }
 
   .cover {
@@ -248,11 +249,11 @@ const dec = (itemId: string, current: number) => {
     position: sticky;
     top: calc(var(--app-brandbar-h, 64px) + 76px);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-xs);
     padding: 20px;
     display: grid;
     gap: 18px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
   }
 
   .footer :deep(.btn) {
@@ -268,4 +269,3 @@ const dec = (itemId: string, current: number) => {
   }
 }
 </style>
-

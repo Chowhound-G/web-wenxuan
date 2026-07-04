@@ -294,4 +294,65 @@ onMounted(() => {
   cursor: pointer;
   flex: 1 1 auto;
 }
+
+@media (min-width: 920px) {
+  .page {
+    width: min(1180px, calc(100% - 48px));
+    max-width: none;
+    padding: 28px 0 48px;
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+    gap: 16px;
+  }
+
+  .title {
+    grid-column: 1 / -1;
+    font-size: 28px;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    grid-column: 1 / -1;
+    margin-top: -12px;
+  }
+
+  .card {
+    margin-top: 0;
+    border-radius: var(--radius-xs);
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  .card:first-of-type {
+    grid-column: 1;
+  }
+
+  .walletCard {
+    grid-column: 1;
+  }
+
+  .card:last-of-type {
+    grid-column: 2;
+    grid-row: 3 / span 2;
+    align-content: start;
+  }
+
+  .entries {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .entry {
+    min-height: 72px;
+    border-radius: var(--radius-xs);
+    background: var(--bg);
+  }
+
+  .primary,
+  .ghost {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 14px;
+    border-radius: var(--radius-xs);
+  }
+}
 </style>

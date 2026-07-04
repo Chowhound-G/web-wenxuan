@@ -61,10 +61,11 @@ test.describe('响应式与核心购物体验 @allure', () => {
     })
 
     await test.step('验证首屏、分类和商品列表', async () => {
-      await expect(page.getByRole('heading', { name: '把好物挑选变简单' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: '精选好物，一站购齐' })).toBeVisible()
       await expect(page.getByRole('searchbox', { name: '搜索' })).toBeVisible()
-      await expect(page.locator('.cat')).toHaveCount(8)
+      await expect(page.locator('.categoryRail .railItem')).toHaveCount(8)
       await expect(page.locator('article.card')).toHaveCount(12)
+      await expect(page.locator('.topActions .primary')).toContainText('登录')
     })
   })
 
@@ -76,9 +77,10 @@ test.describe('响应式与核心购物体验 @allure', () => {
     })
 
     await test.step('验证移动端主要信息可见', async () => {
-      await expect(page.getByRole('heading', { name: '把好物挑选变简单' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: '精选好物，一站购齐' })).toBeVisible()
+      await expect(page.locator('.cat')).toHaveCount(8)
       await expect(page.locator('article.card').first()).toBeVisible()
-      await expect(page.getByRole('button', { name: '打开在线客服' })).toBeVisible()
+      await expect(page.getByRole('button', { name: '打开在线客服' })).toHaveCount(0)
     })
   })
 
