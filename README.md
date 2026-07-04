@@ -75,7 +75,13 @@ npm run test:e2e:allure
 npx allure generate allure-results --clean -o allure-report
 ```
 
-CI/CD 会自动上传 `allure-report` artifact，并把报告入口发送到飞书机器人。
+CI/CD 会把 Allure HTML 发布到线上站点，并把公网报告入口发送到飞书机器人。
+
+报告地址格式：
+
+```text
+http://019f2bb81c537b9083731be895602f96.ap-northeast-1.a8g1v3.xyz/__reports/allure/<run_number>/
+```
 
 禅道测试管理：
 

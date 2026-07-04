@@ -17,7 +17,7 @@
 在仓库 `Settings -> Secrets and variables -> Actions` 增加：
 
 ```text
-ZENTAO_URL       禅道登录页完整 URL，包含 /zentao 和 referer
+ZENTAO_URL       禅道登录页完整 URL，建议包含 /zentao 和 referer
 ZENTAO_USERNAME  禅道账号
 ZENTAO_PASSWORD  禅道密码
 ```
@@ -28,6 +28,14 @@ ZENTAO_PASSWORD  禅道密码
 ZENTAO_PRODUCT_ID  禅道产品 ID；不配置时从 ZENTAO_URL 的 referer 解析，解析失败默认 1
 ZENTAO_CREATE_BUG_ON_FAILURE  是否在测试失败时自动创建 Bug；默认 true，设为 false 可关闭
 ```
+
+如果 `ZENTAO_URL` 填完整登录页，例如：
+
+```text
+https://sub2.hermes.cn.mt/zentao/index.php?m=user&f=login&referer=L3plbnRhby9pbmRleC5waHA/bT1idWcmZj1icm93c2UmcHJvZHVjdElEPTE=
+```
+
+脚本会自动从 `referer` 解析产品 ID。若只填 `https://sub2.hermes.cn.mt/zentao/index.php`，请同时配置 `ZENTAO_PRODUCT_ID`，否则会使用默认产品 ID `1`。
 
 飞书通知继续使用：
 
