@@ -23,6 +23,8 @@ type ProductCard = {
   cover: string
   tags: string[]
   rating: number
+  sales: number
+  brand: string
 }
 
 const router = useRouter()
@@ -55,10 +57,25 @@ const categories = ref<CategoryShortcut[]>([
   { id: 'c_more', name: '更多', icon: CAT_ICONS.c_more },
 ])
 
-const banners = ref<{ id: string; title: string; subtitle: string }[]>([
-  { id: 'b1', title: '春季上新', subtitle: '爆款直降，限时抢购' },
-  { id: 'b2', title: '会员专享', subtitle: '精选好物，满减叠券' },
-  { id: 'b3', title: '大牌补贴', subtitle: '正品保障，极速发货' },
+const banners = ref<{ id: string; title: string; subtitle: string; image: string }[]>([
+  {
+    id: 'b1',
+    title: '现代数码生活',
+    subtitle: '手机、电脑、耳机与智能穿戴精选上新',
+    image: 'https://images.pexels.com/photos/5082579/pexels-photo-5082579.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  {
+    id: 'b2',
+    title: '高效办公桌面',
+    subtitle: '轻薄本、显示器、键鼠外设一站配齐',
+    image: 'https://images.pexels.com/photos/374074/pexels-photo-374074.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
+  {
+    id: 'b3',
+    title: '质感居家日常',
+    subtitle: '家电、收纳、美妆与食品生鲜安心选',
+    image: 'https://images.pexels.com/photos/4050299/pexels-photo-4050299.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  },
 ])
 
 const products = ref<ProductCard[]>([])
@@ -66,6 +83,7 @@ const products = ref<ProductCard[]>([])
 const priceFmt = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' })
 const hasProducts = computed(() => products.value.length > 0)
 const authText = computed(() => (auth.isLoggedIn ? '退出' : '登录'))
+const productCountText = computed(() => `${products.value.length || 0} 件精选`)
 
 const submitSearch = () => {
   const q = keyword.value.trim()
@@ -123,9 +141,9 @@ const retry = () => {
 const load = async () => {
   state.value = 'loading'
   try {
-    const res = await api.get('/v1/products', { params: { page: 1, size: 6 } })
+    const res = await api.get('/v1/products', { params: { page: 1, size: 12 } })
     const list = Array.isArray(res.data?.data) ? res.data.data : []
-    products.value = list.slice(0, 6).map((x: any) => mapBackendProduct(x, { fallbackRating: 4.5 }) as ProductCard)
+    products.value = list.slice(0, 12).map((x: any) => mapBackendProduct(x, { fallbackRating: 4.5 }) as ProductCard)
     state.value = products.value.length === 0 ? 'empty' : 'ready'
   } catch {
     state.value = 'error'
@@ -168,12 +186,31 @@ onMounted(() => {
     </header>
 
     <main class="content" aria-live="polite">
+      <section class="heroPanel" aria-label="精选导购">
+        <div class="heroCopy">
+          <div class="eyebrow">Yuanqi Market</div>
+          <h1 class="heroTitle">把好物挑选变简单</h1>
+          <p class="heroDesc">精选数码、家电、生活与运动商品，清晰价格、真实评价、快速下单。</p>
+          <div class="heroActions">
+            <button class="heroPrimary" type="button" @click="router.push({ name: 'search' })">浏览精选</button>
+            <button class="heroSecondary" type="button" @click="router.push({ name: 'category' })">查看分类</button>
+          </div>
+        </div>
+        <img
+          class="heroImage"
+          src="https://images.pexels.com/photos/5082579/pexels-photo-5082579.jpeg?auto=compress&cs=tinysrgb&w=1200"
+          alt="现代桌面上的数码设备"
+        />
+      </section>
+
       <section class="banner" aria-label="活动横幅">
         <div class="bannerTrack">
           <article v-for="b in banners" :key="b.id" class="bannerCard">
-            <div class="bannerTitle">{{ b.title }}</div>
-            <div class="bannerSub">{{ b.subtitle }}</div>
-        
+            <img class="bannerImg" :src="b.image" :alt="b.title" loading="lazy" decoding="async" />
+            <div class="bannerText">
+              <div class="bannerTitle">{{ b.title }}</div>
+              <div class="bannerSub">{{ b.subtitle }}</div>
+            </div>
           </article>
         </div>
       </section>
@@ -193,7 +230,10 @@ onMounted(() => {
 
       <section class="section">
         <div class="sectionHead">
-          <h2 class="sectionTitle">为你推荐</h2>
+          <div>
+            <h2 class="sectionTitle">为你推荐</h2>
+            <p class="sectionDesc">{{ productCountText }}，覆盖数码、家电与生活方式</p>
+          </div>
           <button class="sectionMore" type="button" @click="router.push({ name: 'search' })">
             查看更多
           </button>
@@ -221,6 +261,7 @@ onMounted(() => {
               <img class="cover" :src="p.cover" :alt="p.title" loading="lazy" decoding="async" />
               <div class="meta">
                 <div class="title">{{ p.title }}</div>
+                <div class="brandLine">{{ p.brand || '精选好物' }} · 已售 {{ p.sales || 0 }}</div>
                 <div class="row">
                   <div class="price">{{ priceFmt.format(p.price) }}</div>
                   <div class="rating">{{ formatRating(p.rating) }}</div>
@@ -325,6 +366,79 @@ onMounted(() => {
   gap: 16px;
 }
 
+.heroPanel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg);
+  display: grid;
+}
+
+.heroCopy {
+  padding: 26px 22px;
+  display: grid;
+  align-content: center;
+  gap: 14px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  margin: 0;
+  max-width: 560px;
+  font-size: 34px;
+  line-height: 1.08;
+  letter-spacing: 0;
+  font-weight: 850;
+}
+
+.heroDesc {
+  max-width: 520px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.heroPrimary,
+.heroSecondary {
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.heroPrimary {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+}
+
+.heroSecondary {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.heroImage {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
 .banner {
   overflow: hidden;
 }
@@ -346,15 +460,24 @@ onMounted(() => {
 .bannerCard {
   scroll-snap-align: start;
   border-radius: 16px;
-  padding: 18px 16px;
   border: 1px solid var(--border);
-  background:
-    radial-gradient(1200px 300px at 20% 10%, color-mix(in srgb, var(--accent) 25%, transparent), transparent),
-    linear-gradient(180deg, color-mix(in srgb, var(--code-bg) 65%, transparent), transparent);
+  background: var(--bg);
   min-height: 120px;
   display: grid;
-  align-content: start;
-  gap: 8px;
+  overflow: hidden;
+}
+
+.bannerImg {
+  width: 100%;
+  height: 112px;
+  object-fit: cover;
+  display: block;
+}
+
+.bannerText {
+  padding: 14px 16px 16px;
+  display: grid;
+  gap: 6px;
 }
 
 .bannerTitle {
@@ -433,6 +556,12 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.sectionDesc {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
 .sectionMore {
   border: 0;
   background: transparent;
@@ -452,6 +581,16 @@ onMounted(() => {
   border-radius: 16px;
   background: var(--bg);
   overflow: hidden;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
 }
 
 .cardBtn {
@@ -486,6 +625,15 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.brandLine {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .row {
@@ -621,6 +769,23 @@ onMounted(() => {
     gap: 20px;
   }
 
+  .heroPanel {
+    grid-template-columns: minmax(0, 1fr) 420px;
+    min-height: 340px;
+  }
+
+  .heroCopy {
+    padding: 48px;
+  }
+
+  .heroTitle {
+    font-size: 48px;
+  }
+
+  .heroImage {
+    height: 100%;
+  }
+
   .bannerTrack {
     grid-auto-flow: initial;
     grid-auto-columns: initial;
@@ -630,7 +795,6 @@ onMounted(() => {
 
   .bannerCard {
     min-height: 150px;
-    padding: 24px;
   }
 
   .bannerTitle {

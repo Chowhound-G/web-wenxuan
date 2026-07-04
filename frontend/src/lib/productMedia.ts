@@ -40,6 +40,7 @@ const readStringArray = (value: unknown): string[] => {
 }
 
 const dedupe = (items: string[]) => Array.from(new Set(items.filter(Boolean)))
+const isLocalPlaceholder = (url: string) => /^\/product_\d+\.jpg$/i.test(url)
 
 export const resolveProductMedia = (
   raw: ProductMediaInput,
@@ -58,7 +59,8 @@ export const resolveProductMedia = (
   }
 
   const normalized = dedupe(items)
-  if (normalized.length > 0) return normalized
+  const concrete = normalized.filter((url) => !isLocalPlaceholder(url))
+  if (concrete.length > 0) return concrete
 
   const fallback = getProductCover(fallbackTitle, hint, String(fallbackId ?? raw.id ?? '').trim())
   return fallback ? [fallback] : []

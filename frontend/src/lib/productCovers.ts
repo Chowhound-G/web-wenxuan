@@ -511,7 +511,6 @@ const applyRules = (name: string, rules: Rule[]): string | null => {
 
 export const getProductCover = (name: string, hint?: ProductCategoryHint, id?: string | number): string | null => {
   const idStr = id === undefined || id === null ? '' : String(id).trim()
-  if (idStr) return `/product_${idStr}.jpg`
 
   const phone = applyRules(name, phoneRules)
   if (phone) return phone
@@ -530,5 +529,6 @@ export const getProductCover = (name: string, hint?: ProductCategoryHint, id?: s
   const sport = applyRules(name, sportRules)
   if (sport) return sport
   if (hint) return fallbackByCategory[hint] || null
+  if (idStr) return `/product_${idStr}.jpg`
   return null
 }

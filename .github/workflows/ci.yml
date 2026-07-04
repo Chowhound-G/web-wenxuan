@@ -3,9 +3,10 @@
 # 触发：push 到 main / 任意 Pull Request
 # 流水线：
 #   1. backend-test    — 后端 Maven 构建 + 单元测试（纯 Mockito，零外部依赖）
-#   2. build-images    — 构建前后端 Docker 镜像并推送 GHCR（依赖测试通过）
-#   3. deploy          — SSH 部署到服务器（仅 push main 触发，依赖镜像构建）
-#   4. notify-feishu   — 汇总 CI/CD 结果并发送飞书通知（配置 Webhook 后启用）
+#   2. frontend-smoke-tests — 前端 Playwright smoke + Allure HTML 报告
+#   3. build-images    — 构建前后端 Docker 镜像并推送 GHCR（依赖测试通过）
+#   4. deploy          — SSH 部署到服务器（仅 push main 触发，依赖镜像构建）
+#   5. notify-feishu   — 汇总 CI/CD 结果并发送飞书通知（配置 Webhook 后启用）
 #
 # 镜像仓库：GHCR (ghcr.io)，与 GitHub 原生集成，免费
 # 部署方式：SSH 到服务器执行 docker pull + docker-compose up -d
@@ -79,11 +80,94 @@ jobs:
           if-no-files-found: ignore
 
   # ──────────────────────────────────────────────────────────────
-  # Job 2: 构建并推送 Docker 镜像（依赖测试通过）
+  # Job 2: 前端 smoke 测试 + Allure 报告
+  # ──────────────────────────────────────────────────────────────
+  frontend-smoke-tests:
+    name: 前端 Smoke 与 Allure 报告
+    runs-on: ubuntu-latest
+    outputs:
+      allure_report_url: ${{ steps.upload_allure_report.outputs.artifact-url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 设置 JDK 17（Allure CLI 需要）
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+
+      - name: 安装 Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: 启动 Vite 测试服务器
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/web-wenxuan-vite.log 2>&1 &
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:5173/ >/dev/null; then
+              echo "Vite is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/web-wenxuan-vite.log
+          exit 1
+
+      - name: 执行前端 smoke 测试（生成 Allure 原始结果）
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+        run: npm run test:e2e:allure
+
+      - name: 生成 Allure HTML 报告
+        if: always()
+        working-directory: frontend
+        run: |
+          if [ -d allure-results ]; then
+            npx allure generate allure-results --clean -o allure-report
+          else
+            mkdir -p allure-report
+            printf '<!doctype html><meta charset="utf-8"><title>No Allure Results</title><h1>No Allure results were generated.</h1>' > allure-report/index.html
+          fi
+
+      - name: 上传 Allure HTML 报告
+        id: upload_allure_report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: frontend/allure-report
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 上传 Playwright HTML 报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 3: 构建并推送 Docker 镜像（依赖测试通过）
   # ──────────────────────────────────────────────────────────────
   build-images:
     name: 构建并推送镜像
-    needs: backend-test
+    needs: [backend-test, frontend-smoke-tests]
     runs-on: ubuntu-latest
     # 镜像 tag：main 分支用 latest + sha，PR 用 pr-<num>
     permissions:
@@ -130,7 +214,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ──────────────────────────────────────────────────────────────
-  # Job 3: 部署到服务器（仅 main 分支 push 触发）
+  # Job 4: 部署到服务器（仅 main 分支 push 触发）
   # 策略：compose 文件常驻服务器，CD 只做"拉镜像 + 重启"，更稳
   # 需 GitHub Secrets: SERVER_HOST, SERVER_PORT, SERVER_USER, SSH_PRIVATE_KEY, DEPLOY_PATH, COMPOSE_FILE
   # 需 GitHub Variable: ENABLE_DEPLOY=true 启用部署
@@ -196,12 +280,12 @@ jobs:
             })
 
   # ──────────────────────────────────────────────────────────────
-  # Job 4: 飞书通知（可选）
+  # Job 5: 飞书通知（可选）
   # 配置 GitHub Secrets: FEISHU_BOT_WEBHOOK, FEISHU_BOT_SECRET(可选)
   # ──────────────────────────────────────────────────────────────
   notify-feishu:
     name: 飞书通知
-    needs: [backend-test, build-images, deploy]
+    needs: [backend-test, frontend-smoke-tests, build-images, deploy]
     runs-on: ubuntu-latest
     if: always()
 
@@ -211,8 +295,10 @@ jobs:
           FEISHU_BOT_WEBHOOK: ${{ secrets.FEISHU_BOT_WEBHOOK }}
           FEISHU_BOT_SECRET: ${{ secrets.FEISHU_BOT_SECRET }}
           BACKEND_RESULT: ${{ needs.backend-test.result }}
+          FRONTEND_TEST_RESULT: ${{ needs.frontend-smoke-tests.result }}
           BUILD_RESULT: ${{ needs.build-images.result }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
+          ALLURE_REPORT_URL: ${{ needs.frontend-smoke-tests.outputs.allure_report_url }}
           ENABLE_DEPLOY: ${{ vars.ENABLE_DEPLOY }}
           REPOSITORY: ${{ github.repository }}
           WORKFLOW: ${{ github.workflow }}
@@ -243,6 +329,7 @@ jobs:
               sys.exit(0)
 
           backend = os.getenv("BACKEND_RESULT", "unknown")
+          frontend = os.getenv("FRONTEND_TEST_RESULT", "unknown")
           build = os.getenv("BUILD_RESULT", "unknown")
           deploy = os.getenv("DEPLOY_RESULT", "unknown")
           enable_deploy = os.getenv("ENABLE_DEPLOY", "").lower() == "true"
@@ -250,7 +337,7 @@ jobs:
           ref_name = os.getenv("REF_NAME", "")
           deploy_expected = event_name == "push" and ref_name == "main" and enable_deploy
 
-          ok = backend == "success" and build == "success"
+          ok = backend == "success" and frontend == "success" and build == "success"
           ok = ok and (deploy == "success" if deploy_expected else deploy in ("success", "skipped"))
 
           run_url = f"{os.getenv('SERVER_URL')}/{os.getenv('REPOSITORY')}/actions/runs/{os.getenv('RUN_ID')}"
@@ -265,6 +352,7 @@ jobs:
           deploy_line = f"部署到服务器：{deploy}"
           if not deploy_expected and deploy == "skipped":
               deploy_line = "部署到服务器：skipped（当前触发条件不部署）"
+          allure_report_url = os.getenv("ALLURE_REPORT_URL", "").strip() or f"{run_url}#artifacts"
 
           text = "\n".join([
               f"[{status_icon}] {title}",
@@ -275,9 +363,11 @@ jobs:
               f"提交：{short_sha} {commit_message}",
               "",
               f"后端构建与测试：{backend}",
+              f"前端 Smoke + Allure：{frontend}",
               f"构建并推送镜像：{build}",
               deploy_line,
               "",
+              f"Allure 报告：{allure_report_url}",
               f"运行详情：{run_url}",
               f"线上地址：{os.getenv('SITE_URL')}",
           ])

@@ -1,85 +1,54 @@
-# ProjectKu Web
+# 元气购 Web
 
 ![CI/CD](https://github.com/Chowhound-G/web-wenxuan/actions/workflows/ci.yml/badge.svg)
 
-**线上访问**：http://019f2bb81c537b9083731be895602f96.ap-northeast-1.a8g1v3.xyz
+一个面向 Demo / 毕设 / 作品集展示的全栈电商项目，包含商城前台、Spring Boot API、AI 客服与知识库管理后台。
 
-## Handoff
+[线上预览](http://019f2bb81c537b9083731be895602f96.ap-northeast-1.a8g1v3.xyz) · [CI/CD](https://github.com/Chowhound-G/web-wenxuan/actions) · [部署说明](deploy/CD-SETUP.md)
 
-If someone else is taking over or helping maintain this project, start with [HANDOFF.md](HANDOFF.md).
+![元气购首页](docs/repo-assets/homepage.png)
 
-ProjectKu Web is a full-stack e-commerce project with product catalog, cart, orders, coupons, after-sales flows, reviews, wallet balance, and an AI customer-service knowledge base.
+## 功能
 
-![ProjectKu homepage](docs/repo-assets/homepage.png)
+- 商品浏览、搜索、分类、详情、评价
+- 购物车、结算、支付结果、订单、售后
+- 登录、收藏、消息中心、钱包余额
+- AI 客服、知识库文档管理、命中日志
+- GitHub Actions 自动测试、构建镜像、部署、飞书通知
+- Playwright + Allure 前端 smoke 测试报告
 
-![Release](https://img.shields.io/github/v/release/Inventionyin/web-wenxuan)
-![License](https://img.shields.io/github/license/Inventionyin/web-wenxuan)
+## 技术栈
 
-## Highlights
+| 模块 | 技术 |
+| --- | --- |
+| Frontend | Vue 3, TypeScript, Pinia, Vite, Playwright |
+| Backend | Java 17, Spring Boot 3, MyBatis, MySQL |
+| AI Service | FastAPI, RAG, LightRAG, Neo4j, pgvector |
+| DevOps | Docker Compose, Nginx, GitHub Actions, GHCR |
 
-- Storefront frontend built with Vue 3 and Vite
-- Backend API built with Spring Boot 3, MyBatis, and MySQL
-- AI customer service built with FastAPI, RAG retrieval, and realtime product lookup
-- Knowledge-base admin with document ingest, indexing, hit logs, and miss logs
-- LightRAG integration path with Neo4j and PostgreSQL/pgvector
+## 快速启动
 
-## Tech Stack
+准备环境：
 
-- Frontend: Vue 3, TypeScript, Pinia, Vite
-- Backend: Java 17, Spring Boot 3, MyBatis
-- AI service: Python, FastAPI, Chroma, LightRAG, Neo4j
-- Infra: Docker Compose, Nginx, MySQL 8, PostgreSQL/pgvector
-
-## Repository Layout
-
-```text
-frontend/      Vue storefront
-back/          Spring Boot backend
-ai-service/    AI customer-service and knowledge-base service
-deploy/        Production deployment templates and scripts
-docs/          Design, deployment, API, and KB docs
-scripts/       Local helper and validation scripts
-```
-
-## Architecture
-
-### Current system
-
-![ProjectKu system architecture](docs/knowledge-base/diagrams/01-current-system-architecture.png)
-
-### AI customer-service target flow
-
-![ProjectKu AI service target flow](docs/knowledge-base/diagrams/03-target-ai-service-flow.png)
-
-## Quick Start
-
-### 1) Minimal local run (storefront + backend)
-
-Use this path if you want the shortest working local setup without bringing up the AI service.
-
-Prerequisites:
-
-- Java 17 + Maven (`mvn`)
-- Node.js 20 + npm (`npm`)
+- Node.js 20+
+- Java 17 + Maven
 - MySQL 8
 
-Default backend local database settings are `localhost:3306`, database `web`, username `root`, password `123456`.
-
-Import the schema and seed data:
+导入数据库：
 
 ```bash
 mysql -uroot -p123456 -e "CREATE DATABASE IF NOT EXISTS web DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mysql -uroot -p123456 --default-character-set=utf8mb4 web < back/sql/init_db.sql
 ```
 
-Start backend:
+启动后端：
 
 ```bash
 cd back
 mvn spring-boot:run
 ```
 
-Start frontend:
+启动前端：
 
 ```bash
 cd frontend
@@ -87,201 +56,63 @@ npm install
 npm run dev -- --host 127.0.0.1
 ```
 
-### 2) AI-enabled local run
+默认地址：
 
-Use this path if you want the full local stack, including the AI service and seeded knowledge-base content.
+- 前端：`http://127.0.0.1:5173`
+- 后端：`http://127.0.0.1:8080/api`
+- 测试账号：`user@example.com / 123456`
+- 管理员：`admin / 123456`
 
-Prerequisites:
+## 测试报告
 
-- Java 17 + Maven (`mvn`)
-- Node.js 20 + npm (`npm`)
-- Python 3.11+ (`python`)
-- Docker (recommended, for local MySQL auto-start)
-
-Fastest path:
-
-Windows PowerShell:
-
-```powershell
-.\start_all.ps1 -Mode dev -InstallAiDeps -SeedAiKb
-```
-
-Linux / macOS:
-
-```bash
-./start_all.sh dev --install-ai-deps --seed-ai-kb
-```
-
-To make AI chat actually answer through your remote LLM, copy `deploy/ai-service.env.example` to `deploy/ai-service.env` and fill at least:
-
-- `AI_LLM_API_KEY`
-- `AI_LLM_BASE_URL` / `AI_LLM_MODEL` if you are not using the default provider
-
-By default the AI service uses local `BAAI/bge-m3` embeddings, so the first startup may download model files. If you already have a remote embedding service, set `AI_EMBEDDING_PROVIDER=remote_http` and fill the remote embedding variables instead.
-
-Default local URLs after startup:
-
-- Frontend: `http://127.0.0.1:5173/`
-- Backend: `http://localhost:8080/api`
-- AI health: `http://127.0.0.1:9000/health`
-
-Optional frontend text-encoding regression check:
-
-```bash
-node scripts/verify_frontend_text_encoding.js
-```
-
-### Windows Portable Bundle
-
-Use this workflow when you want to move the project folder to another Windows PC for private self-use and run it locally from that repo copy.
-
-Prerequisites:
-
-- Docker Desktop
-- Java 17 + Maven (`mvn`)
-- Node.js 20 + npm (`npm`)
-- Python 3.11+ (`python`)
-
-Steps from repo root on Windows PowerShell:
-
-```powershell
-.\run-portable.bat
-.\run-portable.bat doctor
-.\run-portable.bat stop
-```
-
-Typical handoff flow is: unzip the project bundle on the target Windows PC, run `run-portable.bat`, and let it handle first-time setup plus startup automatically. After that, keep using `run-portable.bat` for daily startup, `run-portable.bat doctor` for checks, and `run-portable.bat stop` to stop the local stack.
-
-Portable runtime state stays under repo-local paths (for example `.portable/`, `.pids/`, and `.runtime-logs/`) so the bundle remains self-contained.
-
-To generate a handoff zip from the current machine:
-
-```powershell
-.\package-portable.bat
-```
-
-The package is written under `.portable\dist\`. By default it excludes heavy local runtime folders such as `frontend\node_modules`, `back\target`, `.pids`, `logs`, and `mysql-data`. The current private AI config is copied into `.portable\private\ai-service.env` inside the zip so the target machine can restore it during the first `run-portable.bat`.
-
-### 3) Production deployment
-
-Fastest production path (Linux server):
-
-```bash
-cp deploy/prod.env.example deploy/prod.env
-cp deploy/ai-service.env.example deploy/ai-service.env
-./deploy/prepare_lightrag_env.sh
-./deploy/bootstrap-prod.sh
-```
-
-Alternative from repo root (same production compose stack):
-
-```bash
-./start_all.sh prod
-```
-
-```powershell
-.\start_all.ps1 -Mode prod
-```
-
-Deployment docs:
-
-- `deploy/README.md`
-- `docs/deployment.md`
-- `docs/deployment-faq.md`
-
-## Repository Automation
-
-- GitHub Actions CI runs frontend install/build, frontend text-encoding regression checks, backend unit tests, and a lightweight `ai-service` unit-test subset.
-- Public issue intake is structured with bug-report and feature-request templates.
-
-## Local Smoke Testing
-
-Playwright smoke tests live under `frontend/tests/` and target a running local stack.
-
-Install the browser once:
+本地运行前端 smoke 测试并生成 Allure 报告：
 
 ```bash
 cd frontend
 npm run test:e2e:install
+npm run test:e2e:allure
+npx allure generate allure-results --clean -o allure-report
 ```
 
-Run smoke tests after frontend and backend are already up:
+CI/CD 会自动上传 `allure-report` artifact，并把报告入口发送到飞书机器人。
+
+## 部署
+
+生产环境由 GitHub Actions 完成：
+
+1. 后端测试
+2. 前端 Playwright smoke + Allure 报告
+3. 构建并推送前后端镜像到 GHCR
+4. SSH 到服务器拉取镜像并重启
+5. 飞书发送结果通知
+
+配置方式见：
+
+- [持续部署配置](deploy/CD-SETUP.md)
+- [飞书通知配置](deploy/FEISHU-NOTIFY.md)
+
+## 目录
+
+```text
+frontend/    Vue 商城前台
+back/        Spring Boot 后端 API
+ai-service/  AI 客服服务
+deploy/      部署配置与说明
+docs/        设计、接口与运行文档
+scripts/     本地辅助脚本
+```
+
+## 常用命令
 
 ```bash
-cd frontend
-npm run test:e2e
+# 前端构建
+npm --prefix frontend run build
+
+# 后端测试
+cd back && mvn -B clean verify
+
+# 查看生产后端日志
+ssh -i ~/.ssh/web_wenxuan_deploy -p 10033 root@38.226.195.218
+cd /opt/web-wenxuan
+docker compose -f docker-compose.prod-lite.yml logs -f backend
 ```
-
-Default assumptions:
-
-- frontend: `http://127.0.0.1:5173`
-- backend API: `http://127.0.0.1:8080/api`
-- seeded login: `user@example.com` / `123456`
-
-Override when needed:
-
-```bash
-PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:8080/api npm run test:e2e
-```
-
-Lightweight `k6` smoke scripts live under `k6/` and are only for local or staging checks.
-
-```bash
-k6 run k6/checkout-smoke.js
-```
-
-Recommended production stack:
-
-- Nginx for frontend entry
-- Spring Boot backend with `prod` profile
-- FastAPI AI service
-- MySQL 8
-- Neo4j 5
-- PostgreSQL with pgvector
-- LightRAG in staged rollout mode
-
-## Main Views
-
-- Home: `frontend/src/views/HomeView.vue`
-- Product detail: `frontend/src/views/ProductDetailView.vue`
-- Cart: `frontend/src/views/CartView.vue`
-- Knowledge base admin: `frontend/src/views/KnowledgeBaseAdminView.vue`
-
-## Main APIs
-
-- Products: `/api/v1/products`
-- Orders: `/api/v1/orders`
-- Payments: `/api/v1/payments`
-- AI chat: `/api/v1/customer-service/chat`
-
-OpenAPI:
-
-- Swagger UI: `http://localhost:8080/api/swagger-ui-custom.html`
-- OpenAPI JSON: `http://localhost:8080/api/api-docs`
-
-## Related Docs
-
-- `docs/api-contract.md`
-- `docs/ai-service-runbook.md`
-- `docs/ai-customer-service-knowledge-base-design.md`
-- `docs/knowledge-base/2026-04-26-rag-solution-comparison.md`
-- `docs/knowledge-base/diagrams/`
-- `docs/deployment-faq.md`
-- `CONTRIBUTING.md`
-
-## Public Release Notes
-
-- `v0.1.0`: first public release, deployment templates and release packaging
-- `v0.1.1`: README visualization, public repository polish, and GitHub-facing deployment entry cleanup
-- `v0.1.2`: public repo documentation expansion and deployment FAQ cleanup
-- `v0.1.3`: homepage screenshot and frontend encoding regression guard
-- `v0.1.4`: GitHub CI and public issue templates
-- `v0.1.5`: quick-start clarification and lightweight AI-service CI
-- `v0.1.6`: Playwright smoke tests, k6 checkout smoke, and checkout coupon default fix
-
-## Notes
-
-- `deploy/ai-service.env`, `deploy/lightrag.env`, and `deploy/prod.env` are local/server secrets and are intentionally not committed.
-- The current release keeps Chroma as the stable retrieval path while allowing staged migration to LightRAG.
-- See `NOTICE` for trademark, demo asset, and redistribution caveats.
-- `docs/repo-assets/homepage.png` is generated from the local running frontend and can be refreshed after UI updates.
