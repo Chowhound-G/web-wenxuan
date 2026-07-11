@@ -28,6 +28,11 @@
 #   ZENTAO_CREATE_TESTTASK 创建测试任务并写入执行结果（可选 Variable，默认 true）
 #   ZENTAO_TESTTASK_EXECUTION 禅道执行 ID（可选 Variable，默认 3）
 #   ZENTAO_TESTTASK_BUILD     禅道版本 build ID（可选 Variable，默认 1）
+#
+# TestOps 测试结果上报（可选）：
+#   TESTOPS_URL          TestOps 服务地址（Variable，如 http://your-host/testops）
+#   TESTOPS_TOKEN        TestOps 摄入令牌（Secret，对应服务端 TESTOPS_INGEST_TOKEN）
+#   TESTOPS_PROJECT_ID   TestOps 项目 ID（Variable，默认 wenxuan-web）
 
 name: CI/CD
 
@@ -142,6 +147,32 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
         run: npm run test:e2e:allure
+
+      - name: 上报测试结果到 TestOps
+        continue-on-error: true
+        if: always() && vars.TESTOPS_URL != ''
+        working-directory: frontend
+        env:
+          TESTOPS_URL: ${{ vars.TESTOPS_URL }}
+          TESTOPS_TOKEN: ${{ secrets.TESTOPS_TOKEN }}
+          TESTOPS_PROJECT_ID: ${{ vars.TESTOPS_PROJECT_ID }}
+        run: |
+          if [ -z "$TESTOPS_TOKEN" ]; then
+            echo "TESTOPS_TOKEN secret not configured; skip TestOps reporting."
+            exit 0
+          fi
+          if [ ! -f playwright-report.json ]; then
+            echo "playwright-report.json not found; skip TestOps reporting."
+            exit 0
+          fi
+          PROJECT="${TESTOPS_PROJECT_ID:-wenxuan-web}"
+          echo "Sending Playwright JSON report to TestOps ($TESTOPS_URL, project=$PROJECT)..."
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $TESTOPS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary @playwright-report.json \
+            "$TESTOPS_URL/api/ingest/playwright?projectId=$PROJECT"
 
       - name: 生成 Allure HTML 报告
         if: always()
@@ -444,6 +475,32 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: ${{ env.SITE_URL }}
         run: npm run test:e2e:production
+
+      - name: 上报生产 Smoke 结果到 TestOps
+        continue-on-error: true
+        if: always() && vars.TESTOPS_URL != ''
+        working-directory: frontend
+        env:
+          TESTOPS_URL: ${{ vars.TESTOPS_URL }}
+          TESTOPS_TOKEN: ${{ secrets.TESTOPS_TOKEN }}
+          TESTOPS_PROJECT_ID: ${{ vars.TESTOPS_PROJECT_ID }}
+        run: |
+          if [ -z "$TESTOPS_TOKEN" ]; then
+            echo "TESTOPS_TOKEN secret not configured; skip TestOps reporting."
+            exit 0
+          fi
+          if [ ! -f playwright-report.json ]; then
+            echo "playwright-report.json not found; skip TestOps reporting."
+            exit 0
+          fi
+          PROJECT="${TESTOPS_PROJECT_ID:-wenxuan-web}"
+          echo "Sending production smoke report to TestOps ($TESTOPS_URL, project=$PROJECT)..."
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $TESTOPS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data-binary @playwright-report.json \
+            "$TESTOPS_URL/api/ingest/playwright?projectId=$PROJECT"
 
       - name: 上传生产 Smoke 报告
         if: always()
